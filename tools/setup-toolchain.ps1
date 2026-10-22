@@ -14,8 +14,10 @@
 param(
     [string]$ToolchainRoot = (Join-Path $env:LOCALAPPDATA 'akagi-toolchain'),
     [string]$SdkRoot = (Join-Path $env:LOCALAPPDATA 'Android\Sdk'),
-    [string]$Platform = 'platforms;android-37.0',
-    [string]$BuildTools = 'build-tools;36.0.0',
+    [string]$Platform = 'platforms/android-37.0',
+    # cmdline-tools 23+ forwards sdkmanager to the Android CLI, which uses '/' paths (a ';' would
+    # also be split by cmd.exe when passed through sdkmanager.bat).
+    [string]$BuildTools = 'build-tools/36.0.0',
     [switch]$Yes
 )
 
@@ -33,8 +35,17 @@ function Get-VerifiedDownload {
     param([string]$Url, [string]$Destination, [string]$Algorithm, [string]$ExpectedHash)
     if (-not (Test-Path $Destination)) {
         Write-Host "Downloading $Url"
-        & curl.exe --fail --location --retry 3 --output $Destination $Url
-        if ($LASTEXITCODE -ne 0) { throw "Download failed: $Url" }
+        # Download to .part and resume it (-C -) so a dropped connection doesn't restart from zero.
+        $partial = "$Destination.part"
+        $done = $false
+        for ($attempt = 1; $attempt -le 20 -and -not $done; $attempt++) {
+            & curl.exe --fail --location --continue-at - --retry 10 --retry-all-errors --retry-delay 5 `
+                --connect-timeout 30 --speed-limit 1024 --speed-time 60 --output $partial $Url
+            $done = $LASTEXITCODE -eq 0
+            if (-not $done) { Write-Host "Interrupted (curl exit $LASTEXITCODE), resuming (attempt $attempt/20)..." }
+        }
+        if (-not $done) { throw "Download failed: $Url (rerun the script to resume)" }
+        Move-Item $partial $Destination
     }
     $actual = (Get-FileHash -Path $Destination -Algorithm $Algorithm).Hash
     if ($actual -ne $ExpectedHash) {
@@ -131,8 +142,52 @@ Write-Step 'Accepting Android SDK licenses'
 (("y" + [Environment]::NewLine) * 40) | & $sdkManager --licenses | Out-Null
 
 Write-Step "Installing platform-tools, $Platform, $BuildTools"
-& $sdkManager --install 'platform-tools' $Platform $BuildTools
-if ($LASTEXITCODE -ne 0) { throw 'sdkmanager failed' }
+# sdkmanager can't resume, but it skips packages that finished, so retrying loses at most one package.
+for ($attempt = 1; $attempt -le 5; $attempt++) {
+    & $sdkManager --install 'platform-tools' $Platform $BuildTools
+    if ($LASTEXITCODE -eq 0) { break }
+    if ($attempt -eq 5) { throw 'sdkmanager failed (rerun the script to retry)' }
+    Write-Host "sdkmanager failed, retrying ($attempt/5)..."
+}
+
+# --- Gradle distribution and network settings ---------------------------------------------------------
+$gradleHome = if ($env:GRADLE_USER_HOME) { $env:GRADLE_USER_HOME } else { Join-Path $env:USERPROFILE '.gradle' }
+$wrapperProps = Join-Path $PSScriptRoot '..\gradle\wrapper\gradle-wrapper.properties'
+if (Test-Path $wrapperProps) {
+    $props = ConvertFrom-StringData ((Get-Content $wrapperProps -Raw) -replace '\\:', ':')
+    $distUrl = $props.distributionUrl
+    $distName = [IO.Path]::GetFileNameWithoutExtension($distUrl)
+    # The wrapper keys its cache folder on base-36 MD5 of the URL; placing the zip there lets it skip
+    # its own download, which can't resume.
+    $md5 = [Security.Cryptography.MD5]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($distUrl))
+    $n = [Numerics.BigInteger]::new([byte[]](@([byte[]]$md5[($md5.Length - 1)..0]) + 0))
+    $hash = ''
+    do { $hash = '0123456789abcdefghijklmnopqrstuvwxyz'[[int]($n % 36)] + $hash; $n = $n / 36 } while ($n -gt 0)
+    $distDir = Join-Path $gradleHome "wrapper\dists\$distName\$hash"
+    $distZip = Join-Path $distDir "$distName.zip"
+    if ((Test-Path $distZip) -or (Test-Path "$distZip.ok")) {
+        Write-Step "$distName already downloaded"
+    } else {
+        Write-Step "Pre-fetching $distName (~140 MB)"
+        New-Item -ItemType Directory -Force $distDir | Out-Null
+        Get-VerifiedDownload -Url $distUrl -Destination $distZip -Algorithm SHA256 -ExpectedHash $props.distributionSha256Sum
+    }
+}
+
+Write-Step "Raising Gradle's network retries in $gradleHome\gradle.properties"
+$gradleProps = Join-Path $gradleHome 'gradle.properties'
+$networkProps = [ordered]@{
+    'systemProp.org.gradle.internal.http.connectionTimeout' = '60000'
+    'systemProp.org.gradle.internal.http.socketTimeout' = '120000'
+    'systemProp.org.gradle.internal.repository.max.retries' = '10'
+    'systemProp.org.gradle.internal.repository.initial.backoff' = '2000'
+}
+$existing = if (Test-Path $gradleProps) { Get-Content $gradleProps } else { @() }
+foreach ($key in $networkProps.Keys) {
+    if (-not ($existing -match "^$([regex]::Escape($key))=")) {
+        Add-Content -Path $gradleProps -Value "$key=$($networkProps[$key])" -Encoding ascii
+    }
+}
 
 Write-Step 'Done'
 Write-Host @"
