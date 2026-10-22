@@ -1,0 +1,5 @@
+<resources>
+    <!-- Window-level colors only; Compose colors live in core/designsystem/theme/AkagiPalette.kt. -->
+    <color name="akagi_background">#FF0B1018</color>
+    <color name="akagi_splash_icon_background">#FF14233A</color>
+</resources>

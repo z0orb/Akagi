@@ -1,0 +1,21 @@
+<resources>
+
+    <!-- Dark only: there is deliberately no light theme or values-night variant. -->
+    <style name="Theme.Akagi" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/akagi_background</item>
+        <item name="android:colorBackground">@color/akagi_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+
+    <style name="Theme.Akagi.Splash" parent="Theme.SplashScreen.IconBackground">
+        <item name="windowSplashScreenBackground">@color/akagi_background</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/akagi_splash_icon_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Akagi</item>
+    </style>
+
+</resources>

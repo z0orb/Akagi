@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 18 72 72" width="512" height="512">
+  <!-- Master artwork for the Akagi "Deck & Waveform" icon. Geometry mirrors app/src/main/res/drawable/ic_launcher_*.xml -->
+  <defs>
+    <radialGradient id="sea" cx="54" cy="42" r="78" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1B2D4A"/>
+      <stop offset="1" stop-color="#0A111C"/>
+    </radialGradient>
+    <linearGradient id="deck" x1="54" y1="24" x2="54" y2="80" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C9D3E1"/>
+      <stop offset="1" stop-color="#8797AE"/>
+    </linearGradient>
+    <clipPath id="squircle">
+      <rect x="18" y="18" width="72" height="72" rx="18"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#squircle)">
+    <rect x="0" y="0" width="108" height="108" fill="url(#sea)"/>
+    <path transform="translate(1.2 1.8)" fill="#000" fill-opacity="0.35"
+          d="M46,80 L62,80 Q65,80 65,77 L65,38 C65,31 59.5,26.5 54,23.5 C48.5,26.5 43,31 43,38 L43,77 Q43,80 46,80 Z"/>
+    <path fill="url(#deck)"
+          d="M46,80 L62,80 Q65,80 65,77 L65,38 C65,31 59.5,26.5 54,23.5 C48.5,26.5 43,31 43,38 L43,77 Q43,80 46,80 Z"/>
+    <path fill="#5B6B83" d="M40.5,46 L44.5,46 L44.5,57 L40.5,57 Q39,57 39,55.5 L39,47.5 Q39,46 40.5,46 Z"/>
+    <path fill="#7D8DA5" d="M40.5,46 L44.5,46 L44.5,48 L39,48 L39,47.5 Q39,46 40.5,46 Z"/>
+    <path fill="none" stroke="#3A78D6" stroke-width="2.4" stroke-linecap="round"
+          d="M51.8,41 L56.2,41 M49,45 L59,45 M47,49 L61,49 M49.4,53 L58.6,53 M46.4,57 L61.6,57 M48,61 L60,61 M50.6,65 L57.4,65 M48.6,69 L59.4,69 M52,73 L56,73"/>
+    <path fill="none" stroke="#3A78D6" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"
+          d="M49.4,31.4 L54,36 L58.6,31.4"/>
+  </g>
+</svg>

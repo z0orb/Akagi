@@ -1,0 +1,41 @@
+# Internal docs — only README.md is public
+*.md
+!README.md
+
+# Gradle / build
+.gradle/
+build/
+**/build/
+.kotlin/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+output-metadata.json
+
+# Signing (never commit)
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+*.crt
+keystore.properties
+signing/
+
+# IDE / OS / tools
+.idea/
+*.iml
+.vscode/
+.claude/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+*.hprof
