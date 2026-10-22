@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Restore signing keystore
+        env:
+          AKAGI_KEYSTORE_B64: ${{ secrets.AKAGI_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$AKAGI_KEYSTORE_B64" ]; then
+            echo "::error::AKAGI_KEYSTORE_B64 secret is missing; refusing to publish an unsigned build."
+            exit 1
+          fi
+          echo "$AKAGI_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/akagi-release.p12"
+          echo "AKAGI_KEYSTORE_PATH=$RUNNER_TEMP/akagi-release.p12" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK
+        env:
+          AKAGI_KEYSTORE_PASSWORD: ${{ secrets.AKAGI_KEYSTORE_PASSWORD }}
+          AKAGI_KEY_ALIAS: ${{ secrets.AKAGI_KEY_ALIAS }}
+          AKAGI_KEY_PASSWORD: ${{ secrets.AKAGI_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease -PakagiVersionName="${GITHUB_REF_NAME#v}"
+
+      - name: Verify signature and prepare assets
+        run: |
+          APK="Akagi-${GITHUB_REF_NAME}-arm64-v8a.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$APK"
+          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner"
+          "$APKSIGNER" verify --print-certs "$APK"
+          sha256sum "$APK" > "$APK.sha256"
+          echo "APK=$APK" >> "$GITHUB_ENV"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$APK" "$APK.sha256" \
+            --title "Akagi $GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag
+
+      - name: Remove keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/akagi-release.p12"

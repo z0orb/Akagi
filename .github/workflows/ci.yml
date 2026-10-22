@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "wip/**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      # --continue reports formatting, lint, test and compile problems from a single run.
+      - name: Format check, lint, unit tests, debug + unsigned release (R8) builds
+        run: ./gradlew --continue spotlessCheck lintDebug testDebugUnitTest assembleDebug assembleRelease
+
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports
+          path: app/build/reports/
+          retention-days: 7
