@@ -31,6 +31,20 @@
 
 Requires **Android 10 or newer** on a 64-bit (arm64) phone.
 
+### If music stops with the screen off
+
+Akagi plays as a standard media app, which stock Android leaves alone. Some phone makers add their own
+battery savers that can still stop it. If playback stops after a while with the screen off:
+
+- **Xiaomi / Redmi / POCO (HyperOS, MIUI):** Settings → Apps → Akagi → Battery saver → **No restrictions**,
+  and turn on **Autostart**. In Recents, long-press Akagi and lock it.
+- **Samsung:** Settings → Battery → Background usage limits: make sure Akagi isn't under
+  *Sleeping apps* or *Deep sleeping apps*.
+- **OnePlus / OPPO / realme:** Settings → Battery → App battery management → Akagi → **Allow background activity**.
+- **Huawei / Honor:** Settings → Battery → App launch → Akagi → **Manage manually**, with all three switches on.
+
+More vendor-specific steps are collected at [dontkillmyapp.com](https://dontkillmyapp.com).
+
 ## Building from source
 
 Requirements: JDK 17+ (21 recommended) and the Android SDK (platform 37, build-tools 36).
