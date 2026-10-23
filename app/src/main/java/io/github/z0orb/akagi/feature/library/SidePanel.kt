@@ -35,6 +35,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
@@ -45,6 +49,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import io.github.z0orb.akagi.R
 import kotlin.math.max
@@ -72,6 +77,26 @@ class SidePanelState(initialValue: SidePanelValue) {
 
     suspend fun toggle() = if (draggable.settledValue == SidePanelValue.Closed) open() else close()
 
+    private val anchorPositions: Map<SidePanelValue, Float>
+        get() = SidePanelValue.entries.associateWith { draggable.anchors.positionOf(it) }
+
+    /** The offsets a swipe starting now may move the panel through: one step, [opening] or closing. */
+    internal fun swipeRange(opening: Boolean): ClosedFloatingPointRange<Float> =
+        PanelSettle.stepRange(anchorPositions, draggable.settledValue, opening)
+
+    /** Moves the panel by [delta] offset pixels within [range]; returns the part used. */
+    internal fun dragWithin(delta: Float, range: ClosedFloatingPointRange<Float>): Float =
+        draggable.dispatchRawDelta((visibleWidthPx + delta).coerceIn(range) - visibleWidthPx)
+
+    /**
+     * Ends a drag that came from the content at an anchor inside [range]; [velocity] is in offset pixels per second
+     * (opening is positive).
+     */
+    internal suspend fun settle(velocity: Float, range: ClosedFloatingPointRange<Float>, flingThresholdPx: Float) {
+        val anchors = anchorPositions.filterValues { it in range }
+        draggable.animateTo(PanelSettle.target(anchors, visibleWidthPx, velocity, flingThresholdPx), snapSpec)
+    }
+
     companion object {
         // Critically damped and stiff: taps and flings settle in about 170 ms without overshoot (P7.9).
         internal val snapSpec = spring<Float>(stiffness = Spring.StiffnessMedium)
@@ -88,8 +113,9 @@ fun rememberSidePanelState(): SidePanelState =
     rememberSaveable(saver = SidePanelState.Saver) { SidePanelState(SidePanelValue.Closed) }
 
 /**
- * Right-edge library panel. It moves only by its handle, which is excluded from system gestures, so neither
- * the back swipe nor YouTube's own gestures can trigger it (D-013). Tapping the scrim closes it.
+ * Right-edge library panel. From outside it moves only by its handle, which is excluded from system gestures, so
+ * neither the back swipe nor YouTube's own gestures can trigger it (D-013). Tapping the scrim closes it. Inside,
+ * a horizontal swipe the content can't use (the tab pager at its first or last page) moves the panel (D-059).
  *
  * [content] gets the content's width at Half, the narrowest open panel: parts that must not re-lay out on every
  * frame of a drag (text auto-sizing) measure against it instead of the current width (P7.9).
@@ -156,7 +182,11 @@ fun SidePanel(
                 // A little air on the left edge keeps the narrow Half panel from feeling cramped. It is constant,
                 // so it never re-lays out the content mid-drag.
                 val narrowWidth = with(density) { halfPx.toDp() } - START_INSET
-                Box(modifier = Modifier.padding(start = START_INSET)) { content(narrowWidth) }
+                val flingThresholdPx = with(density) { FLING_THRESHOLD.toPx() }
+                val leftoverSwipes = remember(state, flingThresholdPx) { LeftoverSwipes(state, flingThresholdPx) }
+                Box(modifier = Modifier.padding(start = START_INSET).nestedScroll(leftoverSwipes)) {
+                    content(narrowWidth)
+                }
             }
         }
         if (handleVisible || showPanel) {
@@ -168,6 +198,43 @@ fun SidePanel(
                     .offset { IntOffset(-state.visibleWidthPx.roundToInt(), 0) },
             )
         }
+    }
+}
+
+/**
+ * Hands the content's unused horizontal swipes to the panel (D-059): past Downloads a swipe right narrows it one
+ * step (Full → Half, Half → Closed), past Playlists a swipe left widens it. Once a swipe has moved the panel it
+ * keeps the rest of that swipe, so turning back doesn't switch tabs halfway.
+ */
+private class LeftoverSwipes(private val state: SidePanelState, private val flingThresholdPx: Float) :
+    NestedScrollConnection {
+    /** Set while the current swipe is moving the panel. */
+    private var range: ClosedFloatingPointRange<Float>? = null
+
+    // Scroll deltas follow the finger (right is positive); the panel's offset grows as it opens, to the left.
+    private fun movePanel(fingerDx: Float, within: ClosedFloatingPointRange<Float>): Float =
+        -state.dragWithin(-fingerDx, within)
+
+    // While the panel has this swipe, all of its horizontal motion is spent here, even past the step's end.
+    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+        val within = range ?: return Offset.Zero
+        movePanel(available.x, within)
+        return Offset(available.x, 0f)
+    }
+
+    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+        if (source != NestedScrollSource.UserInput || available.x == 0f) return Offset.Zero
+        val within = range ?: state.swipeRange(opening = available.x < 0f)
+        val used = movePanel(available.x, within)
+        if (used != 0f) range = within
+        return Offset(used, 0f)
+    }
+
+    override suspend fun onPreFling(available: Velocity): Velocity {
+        val within = range ?: return Velocity.Zero
+        range = null
+        state.settle(velocity = -available.x, range = within, flingThresholdPx = flingThresholdPx)
+        return Velocity(available.x, 0f)
     }
 }
 
@@ -211,3 +278,6 @@ private val HANDLE_WIDTH = 24.dp
 private val HANDLE_HEIGHT = 96.dp
 private val START_INSET = 12.dp
 private const val PREWARM_DELAY_MS = 1_000L
+
+// The same minimum as a fling on the handle (anchoredDraggable's own threshold), per second.
+private val FLING_THRESHOLD = 125.dp
