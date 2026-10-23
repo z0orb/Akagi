@@ -1,4 +1,4 @@
-package io.github.z0orb.akagi.feature.downloads
+package io.github.z0orb.akagi.feature.library
 
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
@@ -17,26 +17,26 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @Immutable
-data class DownloadsUiState(
+data class LibraryUiState(
     val tasks: List<DownloadTask> = emptyList(),
     val progress: Map<Long, DownloadProgress> = emptyMap(),
     val tracks: List<TrackEntity> = emptyList(),
 )
 
-/** The temporary downloads list (P3.15); the Phase 4 sidebar replaces it. */
+/** State of the library side panel (PLAN §7.12). */
 @HiltViewModel
-class DownloadsViewModel @Inject constructor(private val queue: DownloadQueue, library: LibraryRepository) :
+class LibraryViewModel @Inject constructor(private val queue: DownloadQueue, library: LibraryRepository) :
     ViewModel() {
 
-    val uiState: StateFlow<DownloadsUiState> =
-        combine(queue.tasks, queue.progress, library.observeTracks(), ::DownloadsUiState)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), DownloadsUiState())
+    val uiState: StateFlow<LibraryUiState> =
+        combine(queue.tasks, queue.progress, library.observeTracks(), ::LibraryUiState)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), LibraryUiState())
 
-    fun onCancel(taskId: Long) {
+    fun onCancelTask(taskId: Long) {
         viewModelScope.launch { queue.cancel(taskId) }
     }
 
-    fun onRetry(taskId: Long) {
+    fun onRetryTask(taskId: Long) {
         viewModelScope.launch { queue.retry(taskId) }
     }
 

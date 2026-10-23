@@ -27,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -48,15 +49,20 @@ import io.github.z0orb.akagi.feature.browser.FormatSheet
 import io.github.z0orb.akagi.feature.browser.FormatSheetActions
 import io.github.z0orb.akagi.feature.browser.FullscreenVideo
 import io.github.z0orb.akagi.feature.browser.rememberBrowserController
-import io.github.z0orb.akagi.feature.downloads.DownloadsScreen
+import io.github.z0orb.akagi.feature.library.LibraryActions
+import io.github.z0orb.akagi.feature.library.LibraryPanel
+import io.github.z0orb.akagi.feature.library.LibraryViewModel
+import io.github.z0orb.akagi.feature.library.SidePanel
+import io.github.z0orb.akagi.feature.library.rememberSidePanelState
 import io.github.z0orb.akagi.feature.settings.SettingsScreen
+import kotlinx.coroutines.launch
 
 /** Full-screen pages drawn over the browser, so the WebView never leaves composition (D-004). */
-private enum class Overlay { NONE, DOWNLOADS, SETTINGS }
+private enum class Overlay { NONE, SETTINGS }
 
 /**
  * App root (PLAN §5): top bar, the WebView area with its overlays, and the fullscreen video layer.
- * The sidebar (Phase 4) and player (Phase 5) slots are marked below.
+ * The player (Phase 5) slot is marked below.
  */
 @Composable
 fun MainScreen(
@@ -64,11 +70,15 @@ fun MainScreen(
     browserViewModel: BrowserViewModel = viewModel(),
     downloadViewModel: DownloadViewModel = viewModel(),
     mainViewModel: MainViewModel = viewModel(),
+    libraryViewModel: LibraryViewModel = viewModel(),
 ) {
     val browserState by browserViewModel.uiState.collectAsStateWithLifecycle()
     val downloadState by downloadViewModel.uiState.collectAsStateWithLifecycle()
     val mainState by mainViewModel.uiState.collectAsStateWithLifecycle()
+    val libraryState by libraryViewModel.uiState.collectAsStateWithLifecycle()
     val controller = rememberBrowserController()
+    val sidePanel = rememberSidePanelState()
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val fullscreenView = controller.fullscreenView
     var overlay by rememberSaveable { mutableStateOf(Overlay.NONE) }
@@ -96,6 +106,13 @@ fun MainScreen(
             onUpdateYtDlp = downloadViewModel::onUpdateYtDlp,
         )
     }
+    val libraryActions = remember(libraryViewModel, context) {
+        LibraryActions(
+            onPlayTrack = { openFile(context, it.contentUri, it.codec) },
+            onCancelTask = libraryViewModel::onCancelTask,
+            onRetryTask = libraryViewModel::onRetryTask,
+        )
+    }
 
     LaunchedEffect(browserState.pendingLoad) {
         browserState.pendingLoad?.let { load ->
@@ -113,9 +130,10 @@ fun MainScreen(
         downloadViewModel.onEventHandled(event.id)
     }
 
-    // Back order (PLAN §7.1): fullscreen → overlay → [player, sidebar: later phases] → WebView history → exit.
+    // Back order (PLAN §7.1): fullscreen → overlay → [player: Phase 5] → sidebar → WebView history → exit.
     // The handler registered last wins, so the most specific one comes last.
     BackHandler(enabled = browserState.canGoBack) { controller.goBack() }
+    BackHandler(enabled = sidePanel.isOpen) { scope.launch { sidePanel.close() } }
     BackHandler(enabled = overlay != Overlay.NONE) { overlay = Overlay.NONE }
     BackHandler(enabled = fullscreenView != null) { controller.exitFullscreen() }
 
@@ -124,7 +142,6 @@ fun MainScreen(
             BrowserTopBar(
                 onSubmit = browserViewModel::onQuerySubmit,
                 onHomeClick = browserViewModel::onHomeClick,
-                onDownloadsClick = { overlay = Overlay.DOWNLOADS },
                 onSettingsClick = { overlay = Overlay.SETTINGS },
             )
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -147,21 +164,15 @@ fun MainScreen(
                     },
                     modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
                 )
-                // Sidebar handle overlay: Phase 4.
+                SidePanel(state = sidePanel, handleVisible = fullscreenView == null) {
+                    LibraryPanel(state = libraryState, actions = libraryActions)
+                }
             }
             // Mini player: Phase 5.
         }
-        // Sidebar panel: Phase 4.
         val overlayModifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
         when (overlay) {
-            Overlay.DOWNLOADS -> DownloadsScreen(
-                onBack = { overlay = Overlay.NONE },
-                onOpenTrack = { openFile(context, it.contentUri, it.codec) },
-                modifier = overlayModifier,
-            )
-
             Overlay.SETTINGS -> SettingsScreen(onBack = { overlay = Overlay.NONE }, modifier = overlayModifier)
-
             Overlay.NONE -> Unit
         }
         fullscreenView?.let { FullscreenVideo(view = it, modifier = Modifier.fillMaxSize()) }

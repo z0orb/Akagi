@@ -38,12 +38,11 @@ import androidx.compose.ui.unit.dp
 import io.github.z0orb.akagi.R
 import kotlinx.coroutines.launch
 
-/** Top bar (PLAN §7.2): Akagi mark (home) · link/search field · downloads · settings. */
+/** Top bar (PLAN §7.2): Akagi mark (home) · link/search field · settings. */
 @Composable
 fun BrowserTopBar(
     onSubmit: (String) -> Unit,
     onHomeClick: () -> Unit,
-    onDownloadsClick: () -> Unit,
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -64,14 +63,6 @@ fun BrowserTopBar(
             )
         }
         LinkField(onSubmit = onSubmit, modifier = Modifier.weight(1f))
-        // Temporary entry to the downloads list (P3.15); the Phase 4 sidebar replaces it.
-        IconButton(onClick = onDownloadsClick) {
-            Icon(
-                painter = painterResource(R.drawable.ic_library),
-                contentDescription = stringResource(R.string.action_downloads),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
         IconButton(onClick = onSettingsClick) {
             Icon(
                 painter = painterResource(R.drawable.ic_settings),

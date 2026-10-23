@@ -9,7 +9,7 @@
     <string name="action_quick_download">Download with last choice</string>
     <string name="fab_downloading">Downloading</string>
     <string name="fab_downloaded">Already downloaded</string>
-    <string name="action_downloads">Downloads</string>
+    <string name="library_handle">Library</string>
     <string name="action_back">Back</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_retry">Retry</string>
@@ -53,8 +53,10 @@
     <string name="download_queued_toast">Added to downloads</string>
     <string name="no_player_found">No app can play this file</string>
 
-    <!-- Downloads list (temporary until the Phase 4 sidebar) -->
-    <string name="downloads_title">Downloads</string>
+    <!-- Library side panel (PLAN §7.12) -->
+    <string name="library_tab_downloads">Downloads</string>
+    <string name="library_tab_playlists">Playlists</string>
+    <string name="playlists_empty">No playlists yet.</string>
     <string name="downloads_empty">Nothing downloaded yet. Open a video and tap the download button.</string>
     <string name="downloads_active">Queue</string>
     <string name="downloads_library">Library</string>
