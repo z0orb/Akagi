@@ -17,7 +17,14 @@ sealed interface AppError {
 
     data object GeoBlocked : AppError
 
-    data object LiveOrUpcoming : AppError
+    /** Streaming right now; it can be downloaded once it ends. */
+    data object Live : AppError
+
+    /** A stream or premiere that hasn't started; [reason] is YouTube's own text ("Premieres in 2 hours"), if any. */
+    data class Upcoming(val reason: String) : AppError
+
+    /** The stream just ended and YouTube is still processing it, so only part of it is available yet. */
+    data object PostLive : AppError
 
     data object Network : AppError
 
@@ -29,10 +36,24 @@ sealed interface AppError {
     data class Unknown(val detail: String) : AppError
 
     /** Stable key for persisting the type; spelled out because R8 renames classes in release builds. */
-    val key: String get() = if (this is Unknown) UNKNOWN_KEY else keys.getValue(this)
+    val key: String
+        get() = when (this) {
+            is Unknown -> UNKNOWN_KEY
+            is Upcoming -> UPCOMING_KEY
+            else -> keys.getValue(this)
+        }
+
+    /** The text persisted next to [key], for the errors that carry one. */
+    val persistedDetail: String?
+        get() = when (this) {
+            is Unknown -> detail
+            is Upcoming -> reason
+            else -> null
+        }
 
     companion object {
         private const val UNKNOWN_KEY = "Unknown"
+        private const val UPCOMING_KEY = "Upcoming"
 
         private val byKey: Map<String, AppError> by lazy {
             mapOf(
@@ -43,7 +64,8 @@ sealed interface AppError {
                 "Private" to Private,
                 "Unavailable" to Unavailable,
                 "GeoBlocked" to GeoBlocked,
-                "LiveOrUpcoming" to LiveOrUpcoming,
+                "Live" to Live,
+                "PostLive" to PostLive,
                 "Network" to Network,
                 "Storage" to Storage,
                 "Interrupted" to Interrupted,
@@ -51,7 +73,14 @@ sealed interface AppError {
         }
         private val keys: Map<AppError, String> by lazy { byKey.entries.associate { (key, error) -> error to key } }
 
-        fun fromKey(key: String, detail: String?): AppError = byKey[key] ?: Unknown(detail.orEmpty())
+        fun fromKey(key: String, detail: String?): AppError = when (key) {
+            UPCOMING_KEY -> Upcoming(detail.orEmpty())
+
+            // Phase 3–5 debug builds stored live and upcoming videos under one key.
+            "LiveOrUpcoming" -> Live
+
+            else -> byKey[key] ?: Unknown(detail.orEmpty())
+        }
     }
 }
 

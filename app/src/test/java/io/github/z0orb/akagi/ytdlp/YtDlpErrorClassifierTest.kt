@@ -29,8 +29,12 @@ class YtDlpErrorClassifierTest {
             AppError.GeoBlocked,
             "ERROR: [youtube] abc: The uploader has not made this video available in your country",
         )
-        assertClass(AppError.LiveOrUpcoming, "ERROR: [youtube] abc: This live event will begin in 3 hours.")
-        assertClass(AppError.LiveOrUpcoming, "ERROR: [youtube] abc: Premieres in 2 days")
+        assertClass(
+            AppError.Upcoming("This live event will begin in 3 hours."),
+            "ERROR: [youtube] abc-_DEF123: This live event will begin in 3 hours.",
+        )
+        assertClass(AppError.Upcoming("Premieres in 2 days"), "ERROR: [youtube] abc: Premieres in 2 days")
+        assertClass(AppError.Unavailable, "ERROR: [youtube] abc: This live stream recording is not available.")
         assertClass(
             AppError.Network,
             "ERROR: [youtube] abc: Unable to download API page: <urlopen error [Errno 7] No address associated with hostname>",

@@ -20,7 +20,7 @@ class VideoInfoCacheTest {
     private var gate: CompletableDeferred<Unit>? = null
     private var failNext = false
 
-    private fun info(id: String) = VideoInfo(id, "t", 1.0, isLiveOrUpcoming = false, formats = emptyList())
+    private fun info(id: String) = VideoInfo(id, "t", 1.0, liveError = null, formats = emptyList())
 
     private fun cache(capacity: Int = 20) = VideoInfoCache(
         fetch = { id ->
@@ -45,6 +45,20 @@ class VideoInfoCacheTest {
         assertEquals(listOf("a"), fetched)
         now = 1_000
         assertNull(cache.peek("a"))
+        cache.get("a")
+        assertEquals(listOf("a", "a"), fetched)
+    }
+
+    @Test
+    fun `live and upcoming videos are never cached`() = runTest {
+        val cache = VideoInfoCache(
+            fetch = { id ->
+                fetched += id
+                info(id).copy(liveError = AppError.Live)
+            },
+            clock = { now },
+        )
+        cache.get("a")
         cache.get("a")
         assertEquals(listOf("a", "a"), fetched)
     }

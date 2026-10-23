@@ -36,7 +36,7 @@ class RoomDownloadTaskStore @Inject constructor(private val dao: DownloadTaskDao
     }
 
     override suspend fun setState(id: Long, state: DownloadState, error: AppError?) {
-        val detail = (error as? AppError.Unknown)?.detail
+        val detail = error?.persistedDetail
         dao.setState(id, state, progress = 0f, errorType = error?.key, errorMessage = detail, now = clock.nowMillis())
     }
 

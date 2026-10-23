@@ -1,5 +1,6 @@
 package io.github.z0orb.akagi.ytdlp
 
+import io.github.z0orb.akagi.core.common.AppError
 import io.github.z0orb.akagi.core.common.AudioCodec
 import kotlin.math.roundToInt
 import org.json.JSONObject
@@ -9,8 +10,6 @@ import org.json.JSONObject
  * variants and DRM, and for multi-language videos keeps only the original/default audio track.
  */
 object AudioFormatMapper {
-    private val liveStatuses = setOf("is_live", "is_upcoming")
-
     fun parse(json: String): VideoInfo {
         val root = JSONObject(json)
         val duration = root.optDouble("duration").takeUnless { it.isNaN() }
@@ -30,9 +29,17 @@ object AudioFormatMapper {
             videoId = root.getString("id"),
             title = root.optString("title").ifBlank { root.getString("id") },
             durationSeconds = duration,
-            isLiveOrUpcoming = root.optString("live_status") in liveStatuses || root.optBoolean("is_live"),
+            liveError = liveErrorOf(root),
             formats = formats,
         )
+    }
+
+    // "was_live" (a finished stream) downloads like any video; "post_live" is still being processed and incomplete.
+    private fun liveErrorOf(root: JSONObject): AppError? = when (root.optString("live_status")) {
+        "is_live" -> AppError.Live
+        "is_upcoming" -> AppError.Upcoming("")
+        "post_live" -> AppError.PostLive
+        else -> AppError.Live.takeIf { root.optBoolean("is_live") }
     }
 
     private fun isPlainAudio(format: JSONObject): Boolean {

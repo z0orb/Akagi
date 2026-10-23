@@ -1,9 +1,9 @@
 package io.github.z0orb.akagi.ytdlp
 
+import io.github.z0orb.akagi.core.common.AppError
 import io.github.z0orb.akagi.core.common.AudioCodec
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class AudioFormatMapperTest {
@@ -14,7 +14,7 @@ class AudioFormatMapperTest {
         assertEquals(listOf("249", "250", "251", "139", "140"), info.formats.map { it.formatId })
         assertEquals("dQw4w9WgXcQ", info.videoId)
         assertEquals(213.0, info.durationSeconds)
-        assertFalse(info.isLiveOrUpcoming)
+        assertNull(info.liveError)
     }
 
     @Test
@@ -34,13 +34,15 @@ class AudioFormatMapperTest {
     }
 
     @Test
-    fun `live and upcoming streams are flagged`() {
-        val live = """{"id":"x","title":"t","live_status":"is_live","formats":[]}"""
-        val upcoming = """{"id":"x","title":"t","live_status":"is_upcoming","formats":[]}"""
-        val ended = """{"id":"x","title":"t","live_status":"was_live","formats":[]}"""
-        assertTrue(AudioFormatMapper.parse(live).isLiveOrUpcoming)
-        assertTrue(AudioFormatMapper.parse(upcoming).isLiveOrUpcoming)
-        assertFalse(AudioFormatMapper.parse(ended).isLiveOrUpcoming)
+    fun `live, upcoming and just-ended streams are flagged but finished ones are not`() {
+        fun parse(status: String) =
+            AudioFormatMapper.parse("""{"id":"x","title":"t","live_status":"$status","formats":[]}""")
+        assertEquals(AppError.Live, parse("is_live").liveError)
+        assertEquals(AppError.Upcoming(""), parse("is_upcoming").liveError)
+        assertEquals(AppError.PostLive, parse("post_live").liveError)
+        assertNull(parse("was_live").liveError)
+        assertNull(parse("not_live").liveError)
+        assertEquals(AppError.Live, AudioFormatMapper.parse("""{"id":"x","is_live":true,"formats":[]}""").liveError)
     }
 
     @Test

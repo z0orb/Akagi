@@ -1,12 +1,15 @@
 package io.github.z0orb.akagi.ytdlp
 
+import io.github.z0orb.akagi.core.common.AppError
 import io.github.z0orb.akagi.core.common.AudioCodec
+
 /** What Akagi needs from yt-dlp's `-J` output. */
 data class VideoInfo(
     val videoId: String,
     val title: String,
     val durationSeconds: Double?,
-    val isLiveOrUpcoming: Boolean,
+    /** Why this video can't be downloaded yet ([AppError.Live], [AppError.Upcoming], [AppError.PostLive]), or null. */
+    val liveError: AppError?,
     /** Audio-only Opus/M4A candidates, already filtered (no DRC, original language only). */
     val formats: List<AudioFormat>,
 )

@@ -26,7 +26,10 @@
     <string name="error_private">This video is private.</string>
     <string name="error_unavailable">This video is unavailable.</string>
     <string name="error_geo_blocked">This video isn\'t available in your country.</string>
-    <string name="error_live">Live streams and premieres can be downloaded after they end.</string>
+    <string name="error_live">This is live right now. It can be downloaded after it ends.</string>
+    <string name="error_upcoming">This stream or premiere hasn\'t started yet. It can be downloaded after it ends.</string>
+    <string name="error_upcoming_reason">%1$s It can be downloaded after it ends.</string>
+    <string name="error_post_live">This stream just ended and YouTube is still processing it. Try again later.</string>
     <string name="error_network">No connection.</string>
     <string name="error_storage">Couldn\'t save the file.</string>
     <string name="error_interrupted">Interrupted, tap Retry.</string>

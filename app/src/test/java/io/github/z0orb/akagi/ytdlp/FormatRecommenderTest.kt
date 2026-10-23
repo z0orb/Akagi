@@ -66,7 +66,7 @@ class FormatRecommenderTest {
     @Test
     fun `a video with no formats at all still offers MP3`() {
         val info =
-            VideoInfo("abcdefghijk", "t", durationSeconds = null, isLiveOrUpcoming = false, formats = emptyList())
+            VideoInfo("abcdefghijk", "t", durationSeconds = null, liveError = null, formats = emptyList())
         val choices = FormatRecommender.choicesFor(info)
         assertTrue(choices.isMp3Fallback)
         assertEquals(null, choices.recommended?.sizeBytes)

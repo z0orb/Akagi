@@ -102,7 +102,7 @@ class DownloadViewModel @Inject constructor(
             quickFetching.update { it + videoId }
             try {
                 val info = infoCache.get(videoId)
-                if (info.isLiveOrUpcoming) throw AppException(AppError.LiveOrUpcoming)
+                info.liveError?.let { throw AppException(it) }
                 val choices = FormatRecommender.choicesFor(info)
                 val option = FormatRecommender.initialSelection(choices, remembered()) ?: return@launch
                 enqueue(info, option, replaceTrackId = null)
@@ -187,8 +187,9 @@ class DownloadViewModel @Inject constructor(
         loadJob = viewModelScope.launch {
             val load = try {
                 val info = infoCache.get(videoId)
-                if (info.isLiveOrUpcoming) {
-                    Load.Failed(AppError.LiveOrUpcoming)
+                val liveError = info.liveError
+                if (liveError != null) {
+                    Load.Failed(liveError)
                 } else {
                     val choices = FormatRecommender.choicesFor(info)
                     sheet.update { model ->

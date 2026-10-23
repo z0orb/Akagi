@@ -4,19 +4,28 @@ import io.github.z0orb.akagi.core.common.AppError
 
 /** Turns yt-dlp's stderr into an [AppError] (PLAN §7.16). Order matters: the most specific signal wins. */
 object YtDlpErrorClassifier {
-    private val rules: List<Pair<AppError, List<String>>> = listOf(
-        AppError.AgeRestricted to listOf(
+    private class Rule(val signals: List<String>, val error: (output: String) -> AppError)
+
+    private fun rule(error: AppError, vararg signals: String) = Rule(signals.toList()) { error }
+
+    private val rules: List<Rule> = listOf(
+        rule(
+            AppError.AgeRestricted,
             "confirm your age",
             "age-restricted",
             "age restricted",
             "inappropriate for some users",
         ),
-        AppError.MembersOnly to listOf("members-only", "members only", "join this channel"),
-        AppError.BotCheck to listOf("not a bot", "sign in to confirm you"),
-        AppError.Private to listOf("private video"),
-        AppError.GeoBlocked to listOf("available in your country", "geo restrict", "geo-restrict"),
-        AppError.LiveOrUpcoming to listOf("live event will begin", "premieres in", "this live stream", "is_live"),
-        AppError.Network to listOf(
+        rule(AppError.MembersOnly, "members-only", "members only", "join this channel"),
+        rule(AppError.BotCheck, "not a bot", "sign in to confirm you"),
+        rule(AppError.Private, "private video"),
+        rule(AppError.GeoBlocked, "available in your country", "geo restrict", "geo-restrict"),
+        // yt-dlp refuses upcoming streams and premieres with YouTube's own wording, which says when they start.
+        Rule(listOf("live event will begin", "premieres in", "premiere will begin", "will begin shortly")) {
+            AppError.Upcoming(reason(it))
+        },
+        rule(
+            AppError.Network,
             "unable to resolve host",
             "failed to resolve",
             "name or service not known",
@@ -27,8 +36,15 @@ object YtDlpErrorClassifier {
             "connection refused",
             "connection reset",
         ),
-        AppError.Unavailable to listOf("video unavailable", "this video is unavailable", "has been removed"),
-        AppError.ExtractorOutdated to listOf(
+        rule(
+            AppError.Unavailable,
+            "video unavailable",
+            "this video is unavailable",
+            "has been removed",
+            "recording is not available",
+        ),
+        rule(
+            AppError.ExtractorOutdated,
             "http error 403",
             "unable to extract",
             "nsig",
@@ -43,7 +59,7 @@ object YtDlpErrorClassifier {
 
     fun classify(output: String): AppError {
         val text = output.lowercase()
-        return rules.firstOrNull { (_, signals) -> signals.any(text::contains) }?.first
+        return rules.firstOrNull { rule -> rule.signals.any(text::contains) }?.error?.invoke(output)
             ?: AppError.Unknown(firstErrorLine(output))
     }
 
@@ -54,4 +70,9 @@ object YtDlpErrorClassifier {
             ?.removePrefix("ERROR:")?.trim()
             .orEmpty()
     }
+
+    private val extractorPrefix = Regex("""^\[[^\]]+]\s*[\w-]+:\s*""")
+
+    /** YouTube's message without yt-dlp's "[youtube] videoId: " prefix. */
+    fun reason(output: String): String = firstErrorLine(output).replaceFirst(extractorPrefix, "")
 }

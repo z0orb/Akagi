@@ -10,13 +10,18 @@ class AppErrorTest {
     fun `every error survives a round trip through its key`() {
         val all = listOf(
             AppError.AgeRestricted, AppError.MembersOnly, AppError.BotCheck, AppError.ExtractorOutdated,
-            AppError.Private, AppError.Unavailable, AppError.GeoBlocked, AppError.LiveOrUpcoming,
-            AppError.Network, AppError.Storage, AppError.Interrupted, AppError.Unknown("boom"),
+            AppError.Private, AppError.Unavailable, AppError.GeoBlocked, AppError.Live,
+            AppError.Upcoming("Premieres in 2 hours"), AppError.PostLive, AppError.Network, AppError.Storage,
+            AppError.Interrupted, AppError.Unknown("boom"),
         )
         all.forEach { error ->
-            val detail = (error as? AppError.Unknown)?.detail
-            assertEquals(error, AppError.fromKey(error.key, detail))
+            assertEquals(error, AppError.fromKey(error.key, error.persistedDetail))
         }
+    }
+
+    @Test
+    fun `rows saved under the old live key read back as Live`() {
+        assertEquals(AppError.Live, AppError.fromKey("LiveOrUpcoming", null))
     }
 
     @Test

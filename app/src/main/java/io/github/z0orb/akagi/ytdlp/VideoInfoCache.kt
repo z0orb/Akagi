@@ -50,6 +50,8 @@ class VideoInfoCache(
             lock.withLock {
                 inFlight.remove(videoId)
                 result.onSuccess { info ->
+                    // A live or upcoming video changes state within minutes, so it is always asked again.
+                    if (info.liveError != null) return@onSuccess
                     entries[videoId] = Entry(info, clock.nowMillis())
                     if (entries.size > capacity) entries.remove(entries.keys.first())
                 }
