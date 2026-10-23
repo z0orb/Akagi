@@ -1,5 +1,6 @@
 package io.github.z0orb.akagi.data.library
 
+import io.github.z0orb.akagi.data.db.LibrarySize
 import io.github.z0orb.akagi.data.db.TrackDao
 import io.github.z0orb.akagi.data.db.TrackEntity
 import io.github.z0orb.akagi.data.storage.AudioDeletion
@@ -18,6 +19,8 @@ class LibraryRepository @Inject constructor(
     fun observeTracks(): Flow<List<TrackEntity>> = trackDao.observeAll()
 
     fun observeTrack(videoId: String): Flow<TrackEntity?> = trackDao.observeByVideoId(videoId)
+
+    fun observeLibrarySize(): Flow<LibrarySize> = trackDao.observeLibrarySize()
 
     suspend fun playlistCount(trackId: Long): Int = trackDao.playlistCount(trackId)
 

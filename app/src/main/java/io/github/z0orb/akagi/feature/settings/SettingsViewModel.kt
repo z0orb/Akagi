@@ -11,10 +11,14 @@ import io.github.z0orb.akagi.core.common.AppError
 import io.github.z0orb.akagi.core.common.AppException
 import io.github.z0orb.akagi.core.common.AudioCodec
 import io.github.z0orb.akagi.core.common.SignInState
+import io.github.z0orb.akagi.data.db.LibrarySize
+import io.github.z0orb.akagi.data.library.LibraryRepository
 import io.github.z0orb.akagi.data.prefs.AutoUpdate
 import io.github.z0orb.akagi.data.prefs.CookiePolicy
 import io.github.z0orb.akagi.data.prefs.Settings
 import io.github.z0orb.akagi.data.prefs.SettingsRepository
+import io.github.z0orb.akagi.data.storage.AppStorage
+import io.github.z0orb.akagi.data.storage.StorageUsage
 import io.github.z0orb.akagi.ytdlp.FormatTier
 import io.github.z0orb.akagi.ytdlp.UpdateResult
 import io.github.z0orb.akagi.ytdlp.YtDlpEngine
@@ -37,6 +41,10 @@ data class SettingsUiState(
     val signIn: SignInState = SignInState(),
     /** The outcome of the last cookies.txt import, shown under the account buttons. */
     val cookieImport: CookieImportResult? = null,
+    /** Tracks in the library and their total size; null until loaded. */
+    val library: LibrarySize? = null,
+    /** Akagi's own storage; null until measured. */
+    val appStorage: AppStorage? = null,
     /** Something the UI should do once, then acknowledge with [SettingsViewModel.onEventHandled]. */
     val event: SettingsEvent? = null,
 )
@@ -66,26 +74,39 @@ class SettingsViewModel @Inject constructor(
     private val engine: YtDlpEngine,
     private val updater: YtDlpUpdater,
     private val account: AccountRepository,
+    library: LibraryRepository,
+    private val storageUsage: StorageUsage,
 ) : ViewModel() {
 
     private val version = MutableStateFlow<String?>(null)
     private val update = MutableStateFlow<UpdateStatus>(UpdateStatus.Idle)
     private val cookieImport = MutableStateFlow<CookieImportResult?>(null)
     private val event = MutableStateFlow<SettingsEvent?>(null)
+    private val appStorage = MutableStateFlow<AppStorage?>(null)
     private var nextEventId = 0L
 
     val uiState: StateFlow<SettingsUiState> = combine(
         combine(repository.settings, version, update, ::Triple),
         account.state,
-        cookieImport,
-        event,
-    ) { (settings, version, update), signIn, cookieImport, event ->
-        SettingsUiState(settings, version, update, signIn, cookieImport, event)
+        combine(cookieImport, event, ::Pair),
+        combine(library.observeLibrarySize(), appStorage, ::Pair),
+    ) { (settings, version, update), signIn, (cookieImport, event), (librarySize, storage) ->
+        SettingsUiState(
+            settings = settings,
+            ytDlpVersion = version,
+            update = update,
+            signIn = signIn,
+            cookieImport = cookieImport,
+            library = librarySize,
+            appStorage = storage,
+            event = event,
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), SettingsUiState())
 
     init {
         account.refresh()
         viewModelScope.launch { version.value = runCatching { engine.version() }.getOrNull() }
+        viewModelScope.launch { appStorage.value = storageUsage.measure() }
     }
 
     fun onCheckUpdate() {

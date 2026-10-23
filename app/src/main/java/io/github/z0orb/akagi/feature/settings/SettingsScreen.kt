@@ -1,6 +1,7 @@
 package io.github.z0orb.akagi.feature.settings
 
 import android.text.format.DateUtils
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,11 +27,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -38,11 +43,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.z0orb.akagi.R
 import io.github.z0orb.akagi.core.common.AudioCodec
+import io.github.z0orb.akagi.core.common.SizeFormatter
 import io.github.z0orb.akagi.core.designsystem.ChoiceRow
 import io.github.z0orb.akagi.core.designsystem.OverlayTopBar
 import io.github.z0orb.akagi.core.designsystem.describe
+import io.github.z0orb.akagi.data.db.LibrarySize
 import io.github.z0orb.akagi.data.prefs.AutoUpdate
 import io.github.z0orb.akagi.data.prefs.Settings
+import io.github.z0orb.akagi.data.storage.AppStorage
 
 /**
  * Settings overlay (PLAN §7.14–7.15, D-004): an overlay, so the WebView underneath never reloads. [onSignIn] opens
@@ -65,10 +73,19 @@ fun SettingsScreen(
         }
         viewModel.onEventHandled(event.id)
     }
+    var showLicences by rememberSaveable { mutableStateOf(false) }
+    // Outside the branch below, so coming back from the licences keeps the place in Settings.
+    val scroll = rememberScrollState()
+    if (showLicences) {
+        // Composed after MainScreen's handlers, so back closes the licences before Settings.
+        BackHandler { showLicences = false }
+        LicencesPage(onBack = { showLicences = false }, modifier = modifier)
+        return
+    }
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         OverlayTopBar(title = stringResource(R.string.settings_title), onBack = onBack)
         Column(
-            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+            modifier = Modifier.fillMaxWidth().verticalScroll(scroll).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             YtDlpSection(
@@ -93,10 +110,42 @@ fun SettingsScreen(
                     onCookiePolicyChange = viewModel::onCookiePolicyChanged,
                 ),
             )
+            Spacer(Modifier.height(8.dp))
+            StorageSection(library = state.library, appStorage = state.appStorage)
+            Spacer(Modifier.height(8.dp))
+            AboutSection(onShowLicences = { showLicences = true })
             Spacer(Modifier.height(24.dp))
         }
     }
 }
+
+/** Where the music goes and what Akagi itself takes (P7.5); sizes in MB like the rest of the app (D-018). */
+@Composable
+private fun ColumnScope.StorageSection(library: LibrarySize?, appStorage: AppStorage?) {
+    val measuring = stringResource(R.string.settings_storage_measuring)
+    SectionTitle(stringResource(R.string.settings_section_storage))
+    LabelValue(stringResource(R.string.settings_storage_location), MUSIC_FOLDER)
+    LabelValue(
+        stringResource(R.string.settings_storage_library),
+        library?.let {
+            stringResource(
+                R.string.settings_storage_library_value,
+                pluralStringResource(R.plurals.playlist_track_count, it.count, it.count),
+                SizeFormatter.megabytes(it.bytes),
+            )
+        } ?: measuring,
+    )
+    LabelValue(
+        stringResource(R.string.settings_storage_runtime),
+        appStorage?.let { SizeFormatter.megabytes(it.runtimeBytes) } ?: measuring,
+    )
+    LabelValue(
+        stringResource(R.string.settings_storage_cache),
+        appStorage?.let { SizeFormatter.megabytes(it.cacheBytes + it.thumbnailBytes) } ?: measuring,
+    )
+}
+
+private const val MUSIC_FOLDER = "Music/Akagi"
 
 @Composable
 private fun ColumnScope.YtDlpSection(
@@ -218,6 +267,7 @@ internal fun Label(text: String) {
 internal fun LabelValue(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth()) {
         Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(12.dp))
         Text(value, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

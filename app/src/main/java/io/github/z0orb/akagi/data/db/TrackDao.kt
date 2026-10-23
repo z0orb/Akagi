@@ -8,10 +8,16 @@ import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
+/** How many tracks the library holds and their files' total size (Settings, P7.5). */
+data class LibrarySize(val count: Int, val bytes: Long)
+
 @Dao
 interface TrackDao {
     @Query("SELECT * FROM tracks ORDER BY downloadedAt DESC")
     fun observeAll(): Flow<List<TrackEntity>>
+
+    @Query("SELECT COUNT(*) AS count, COALESCE(SUM(sizeBytes), 0) AS bytes FROM tracks")
+    fun observeLibrarySize(): Flow<LibrarySize>
 
     @Query("SELECT * FROM tracks WHERE videoId = :videoId")
     suspend fun findByVideoId(videoId: String): TrackEntity?
