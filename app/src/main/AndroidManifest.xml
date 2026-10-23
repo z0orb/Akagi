@@ -26,10 +26,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Akagi">
 
-        <!-- configChanges keeps the single YouTube WebView alive across rotation (PLAN §7.1). -->
+        <!-- configChanges keeps the single YouTube WebView (and a paused player queue) alive across rotation and font size changes (PLAN §7.1, P7.4). -->
         <activity
             android:name=".MainActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|fontScale"
             android:exported="true"
             android:launchMode="singleTask"
             android:theme="@style/Theme.Akagi.Splash"

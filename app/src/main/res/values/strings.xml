@@ -92,6 +92,8 @@
     <string name="playlist_delete_body">The playlist is removed. Its tracks stay in Downloads.</string>
     <string name="playlist_remove_track">Remove from playlist</string>
     <string name="playlist_reorder">Drag to reorder</string>
+    <string name="playlist_move_up">Move up</string>
+    <string name="playlist_move_down">Move down</string>
     <string name="playlist_nothing_playable">None of these files can be found.</string>
     <string name="track_add_to_playlist">Add to playlist</string>
     <string name="track_actions">More options</string>

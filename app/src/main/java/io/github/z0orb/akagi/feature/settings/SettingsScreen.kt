@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -116,11 +117,15 @@ private fun ColumnScope.YtDlpSection(
         selected = settings.nightlyYtDlp,
         onSelect = onNightlyChange,
     )
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    // The status line moves under the button when both don't fit, instead of wrapping letter by letter.
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
         Button(onClick = onCheckUpdate, enabled = state.update != UpdateStatus.Running) {
             Text(stringResource(R.string.settings_check_update))
         }
-        Spacer(Modifier.width(16.dp))
         Text(
             text = updateLine(state),
             style = MaterialTheme.typography.bodySmall,

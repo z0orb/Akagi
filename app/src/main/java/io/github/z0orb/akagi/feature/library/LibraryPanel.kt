@@ -38,6 +38,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -158,6 +159,7 @@ private fun PanelTabs(pager: PagerState, narrowWidth: Dp, onSelect: (Int) -> Uni
                     style = MaterialTheme.typography.titleSmall,
                     color = if (selected) colors.onSurface else colors.onSurfaceVariant,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = 14.sp),
                     modifier = Modifier.widthIn(max = labelWidth),
                 )

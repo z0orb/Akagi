@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.FilledTonalButton
@@ -32,6 +32,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -117,12 +120,30 @@ private fun ReorderableTracks(detail: PlaylistDetail, actions: LibraryActions, g
         tracks = tracks.toMutableList().apply { add(to.index, removeAt(from.index)) }
         haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
     }
+    // Dragging can't be done with TalkBack, so each row also offers "Move up" / "Move down" (P7.4).
+    val moveUp = stringResource(R.string.playlist_move_up)
+    val moveDown = stringResource(R.string.playlist_move_down)
+
+    // Returns true: the accessibility action was handled.
+    fun move(from: Int, to: Int): Boolean {
+        tracks = tracks.toMutableList().apply { add(to, removeAt(from)) }
+        actions.onReorder(detail.id, tracks.map { it.id })
+        return true
+    }
     LazyColumn(state = listState, contentPadding = PaddingValues(bottom = 24.dp)) {
-        items(tracks, key = { it.id }, contentType = { "track" }) { track ->
+        itemsIndexed(tracks, key = { _, track -> track.id }, contentType = { _, _ -> "track" }) { index, track ->
             ReorderableItem(reorderState, key = track.id) { isDragging ->
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     shadowElevation = if (isDragging) 6.dp else 0.dp,
+                    modifier = Modifier.semantics {
+                        customActions = buildList {
+                            if (index > 0) add(CustomAccessibilityAction(moveUp) { move(index, index - 1) })
+                            if (index < tracks.lastIndex) {
+                                add(CustomAccessibilityAction(moveDown) { move(index, index + 1) })
+                            }
+                        }
+                    },
                 ) {
                     TrackRow(
                         track,
