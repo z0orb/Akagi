@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.z0orb.akagi.R
+import io.github.z0orb.akagi.core.common.SignInState
 import io.github.z0orb.akagi.core.common.SizeFormatter
 import io.github.z0orb.akagi.core.designsystem.TrackThumbnail
 import io.github.z0orb.akagi.core.designsystem.codecLabel
@@ -73,6 +74,7 @@ internal fun EmptyState(text: String, modifier: Modifier = Modifier) {
 internal fun TaskRow(
     task: DownloadTask,
     progress: DownloadProgress?,
+    signIn: SignInState,
     onCancel: (Long) -> Unit,
     onRetry: (Long) -> Unit,
     modifier: Modifier = Modifier,
@@ -88,7 +90,7 @@ internal fun TaskRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            TaskStatus(task, progress)
+            TaskStatus(task, progress, signIn)
         }
         if (task.state == DownloadState.FAILED) {
             IconButton(onClick = { onRetry(task.id) }) {
@@ -102,16 +104,16 @@ internal fun TaskRow(
 }
 
 @Composable
-private fun TaskStatus(task: DownloadTask, progress: DownloadProgress?) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { TaskStatusLines(task, progress) }
+private fun TaskStatus(task: DownloadTask, progress: DownloadProgress?, signIn: SignInState) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { TaskStatusLines(task, progress, signIn) }
 }
 
 @Composable
-private fun ColumnScope.TaskStatusLines(task: DownloadTask, progress: DownloadProgress?) {
+private fun ColumnScope.TaskStatusLines(task: DownloadTask, progress: DownloadProgress?, signIn: SignInState) {
     val error = task.error
     when {
         task.state == DownloadState.FAILED && error != null -> Text(
-            stringResource(R.string.downloads_failed, error.describe(LocalContext.current.resources)),
+            stringResource(R.string.downloads_failed, error.describe(LocalContext.current.resources, signIn)),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error,
         )

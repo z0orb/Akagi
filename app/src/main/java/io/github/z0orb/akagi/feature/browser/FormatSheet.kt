@@ -3,6 +3,7 @@ package io.github.z0orb.akagi.feature.browser
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,7 +42,9 @@ import androidx.compose.ui.unit.dp
 import io.github.z0orb.akagi.R
 import io.github.z0orb.akagi.core.common.AppError
 import io.github.z0orb.akagi.core.common.AudioCodec
+import io.github.z0orb.akagi.core.common.SignInAdvice
 import io.github.z0orb.akagi.core.common.SizeFormatter
+import io.github.z0orb.akagi.core.common.accountCanHelp
 import io.github.z0orb.akagi.core.designsystem.codecLabel
 import io.github.z0orb.akagi.core.designsystem.describe
 import io.github.z0orb.akagi.core.designsystem.isRetryable
@@ -62,6 +65,8 @@ class FormatSheetActions(
     val onRetryTask: (Long) -> Unit,
     val onRetryFetch: () -> Unit,
     val onUpdateYtDlp: () -> Unit,
+    val onSignIn: () -> Unit,
+    val onOpenSettings: () -> Unit,
 )
 
 /** Codec toggle, bitrate list with sizes and the recommendation, or the video's download status (PLAN §7.4). */
@@ -92,7 +97,7 @@ fun FormatSheet(state: SheetUiState, actions: FormatSheetActions, modifier: Modi
             when (val content = state.content) {
                 SheetContent.Loading -> Busy(stringResource(R.string.sheet_loading))
                 SheetContent.UpdatingYtDlp -> Busy(stringResource(R.string.settings_updating))
-                is SheetContent.Failed -> Failure(content.error, actions)
+                is SheetContent.Failed -> Failure(content.error, content.advice, actions)
                 is SheetContent.Choose -> Choose(content, actions)
                 is SheetContent.InLibrary -> InLibrary(content, actions)
                 is SheetContent.Active -> Active(content, actions)
@@ -111,24 +116,34 @@ private fun Busy(label: String) {
 }
 
 @Composable
-private fun ColumnScope.Failure(error: AppError, actions: FormatSheetActions) {
-    ErrorText(error)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+private fun ColumnScope.Failure(error: AppError, advice: SignInAdvice, actions: FormatSheetActions) {
+    ErrorText(error, advice)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        when (advice) {
+            SignInAdvice.SIGN_IN -> Button(onClick = actions.onSignIn) { Text(stringResource(R.string.action_sign_in)) }
+
+            SignInAdvice.ALLOW_SIGN_IN -> Button(onClick = actions.onOpenSettings) {
+                Text(stringResource(R.string.action_open_settings))
+            }
+
+            SignInAdvice.NONE, SignInAdvice.ACCOUNT_REFUSED -> Unit
+        }
         if (error.suggestsUpdate) {
-            Button(onClick = actions.onUpdateYtDlp) {
+            OutlinedButton(onClick = actions.onUpdateYtDlp) {
                 Text(stringResource(R.string.action_update_ytdlp))
             }
         }
-        if (error.isRetryable || error.suggestsUpdate) {
+        // An account error can pass once the sign-in or the cookie policy changes.
+        if (error.isRetryable || error.suggestsUpdate || error.accountCanHelp) {
             OutlinedButton(onClick = actions.onRetryFetch) { Text(stringResource(R.string.action_retry)) }
         }
     }
 }
 
 @Composable
-private fun ErrorText(error: AppError) {
+private fun ErrorText(error: AppError, advice: SignInAdvice) {
     Text(
-        text = error.describe(LocalContext.current.resources),
+        text = error.describe(LocalContext.current.resources, advice),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.error,
     )
@@ -234,7 +249,7 @@ private fun ColumnScope.InLibrary(content: SheetContent.InLibrary, actions: Form
 private fun ColumnScope.Active(content: SheetContent.Active, actions: FormatSheetActions) {
     val error = content.error
     if (content.state == DownloadState.FAILED && error != null) {
-        ErrorText(error)
+        ErrorText(error, content.advice)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { actions.onRetryTask(content.taskId) }) { Text(stringResource(R.string.action_retry)) }
             TextButton(onClick = {

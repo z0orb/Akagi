@@ -11,6 +11,7 @@ import androidx.core.app.NotificationManagerCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.z0orb.akagi.MainActivity
 import io.github.z0orb.akagi.R
+import io.github.z0orb.akagi.account.AccountRepository
 import io.github.z0orb.akagi.core.designsystem.describe
 import io.github.z0orb.akagi.data.db.DownloadState
 import io.github.z0orb.akagi.ytdlp.DownloadProgress
@@ -19,7 +20,10 @@ import javax.inject.Singleton
 
 /** Progress, failure and completion notifications (PLAN §7.5). The group summary is the service's FGS notification. */
 @Singleton
-class DownloadNotifier @Inject constructor(@ApplicationContext private val context: Context) {
+class DownloadNotifier @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val account: AccountRepository,
+) {
     private val manager = NotificationManagerCompat.from(context)
     private val shown = mutableSetOf<Long>()
 
@@ -130,7 +134,9 @@ class DownloadNotifier @Inject constructor(@ApplicationContext private val conte
     private fun failed(task: DownloadTask): Notification = NotificationCompat.Builder(context, CHANNEL_EVENTS)
         .setSmallIcon(R.drawable.ic_stat_akagi)
         .setContentTitle(task.request.title)
-        .setContentText(task.error?.describe(context.resources) ?: context.getString(R.string.notif_failed))
+        .setContentText(
+            task.error?.describe(context.resources, account.state.value) ?: context.getString(R.string.notif_failed),
+        )
         .setContentIntent(openApp())
         .addAction(0, context.getString(R.string.action_retry), action(DownloadActionReceiver.ACTION_RETRY, task.id))
         .addAction(0, context.getString(R.string.action_cancel), action(DownloadActionReceiver.ACTION_CANCEL, task.id))

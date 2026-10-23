@@ -130,7 +130,7 @@ private fun DownloadsTab(state: LibraryUiState, actions: LibraryActions, guard: 
                 SectionHeader(stringResource(R.string.downloads_active))
             }
             items(state.tasks, key = { "task-${it.id}" }, contentType = { "task" }) { task ->
-                TaskRow(task, state.progress[task.id], actions.onCancelTask, actions.onRetryTask)
+                TaskRow(task, state.progress[task.id], state.signIn, actions.onCancelTask, actions.onRetryTask)
             }
             if (state.tracks.isNotEmpty()) {
                 item(key = "library-header", contentType = "header") {

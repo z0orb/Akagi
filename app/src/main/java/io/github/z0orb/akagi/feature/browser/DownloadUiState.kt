@@ -3,6 +3,7 @@ package io.github.z0orb.akagi.feature.browser
 import androidx.compose.runtime.Immutable
 import io.github.z0orb.akagi.core.common.AppError
 import io.github.z0orb.akagi.core.common.AudioCodec
+import io.github.z0orb.akagi.core.common.SignInAdvice
 import io.github.z0orb.akagi.data.db.DownloadState
 import io.github.z0orb.akagi.ytdlp.FormatChoices
 import io.github.z0orb.akagi.ytdlp.FormatOption
@@ -36,7 +37,8 @@ sealed interface SheetContent {
 
     data object UpdatingYtDlp : SheetContent
 
-    data class Failed(val error: AppError) : SheetContent
+    /** [advice] says what signing in could change about [error] (PLAN §7.15). */
+    data class Failed(val error: AppError, val advice: SignInAdvice = SignInAdvice.NONE) : SheetContent
 
     @Immutable
     data class Choose(val choices: FormatChoices, val selected: FormatOption) : SheetContent {
@@ -47,8 +49,13 @@ sealed interface SheetContent {
     data class InLibrary(val codec: AudioCodec, val sizeBytes: Long, val trackId: Long) : SheetContent
 
     /** Queued, running or failed for this video: show progress with Cancel, or the error with Retry. */
-    data class Active(val taskId: Long, val state: DownloadState, val progress: Float?, val error: AppError?) :
-        SheetContent
+    data class Active(
+        val taskId: Long,
+        val state: DownloadState,
+        val progress: Float?,
+        val error: AppError?,
+        val advice: SignInAdvice = SignInAdvice.NONE,
+    ) : SheetContent
 }
 
 sealed interface DownloadEvent {

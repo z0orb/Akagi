@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.z0orb.akagi.R
+import io.github.z0orb.akagi.account.AccountRepository
 import io.github.z0orb.akagi.core.common.AppException
 import io.github.z0orb.akagi.data.db.TrackEntity
 import io.github.z0orb.akagi.data.library.LibraryRepository
@@ -36,6 +37,7 @@ class LibraryViewModel @Inject constructor(
     private val playlists: PlaylistRepository,
     private val player: PlayerConnection,
     private val savedState: SavedStateHandle,
+    private val account: AccountRepository,
 ) : ViewModel() {
 
     private val dialog = MutableStateFlow<LibraryDialog?>(null)
@@ -61,9 +63,9 @@ class LibraryViewModel @Inject constructor(
         openPlaylist,
         // Saved here rather than in the panel, whose content leaves composition while it is closed.
         savedState.getStateFlow(TAB_KEY, LibraryTab.DOWNLOADS),
-        combine(dialog, event, ::Pair),
-    ) { (tasks, progress, tracks), summaries, detail, tab, (dialog, event) ->
-        LibraryUiState(tasks, progress, tracks, summaries, detail, tab, dialog, event)
+        combine(dialog, event, account.state, ::Triple),
+    ) { (tasks, progress, tracks), summaries, detail, tab, (dialog, event, signIn) ->
+        LibraryUiState(tasks, progress, tracks, summaries, detail, tab, dialog, event, signIn)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), LibraryUiState())
 
     fun onSelectTab(tab: LibraryTab) {
@@ -229,8 +231,9 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    /** Files can vanish while Akagi is in the background (another app, a file manager). */
+    /** Files can vanish while Akagi is in the background (another app, a file manager), and the sign-in can change. */
     fun onResume() {
+        account.refresh()
         viewModelScope.launch { library.reconcileMissingFiles() }
     }
 

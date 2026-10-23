@@ -112,7 +112,7 @@ fun MainScreen(
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
-    val sheetActions = remember(downloadViewModel) {
+    val sheetActions = remember(downloadViewModel, browserViewModel) {
         FormatSheetActions(
             onDismiss = downloadViewModel::onDismissSheet,
             onCodecSelected = downloadViewModel::onCodecSelected,
@@ -124,6 +124,14 @@ fun MainScreen(
             onRetryTask = downloadViewModel::onRetryTask,
             onRetryFetch = downloadViewModel::onRetryFetch,
             onUpdateYtDlp = downloadViewModel::onUpdateYtDlp,
+            onSignIn = {
+                downloadViewModel.onDismissSheet()
+                browserViewModel.onSignInClick()
+            },
+            onOpenSettings = {
+                downloadViewModel.onDismissSheet()
+                overlay = Overlay.SETTINGS
+            },
         )
     }
     val libraryActions = remember(libraryViewModel) {
@@ -235,7 +243,16 @@ fun MainScreen(
         }
         val overlayModifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
         when (overlay) {
-            Overlay.SETTINGS -> SettingsScreen(onBack = { overlay = Overlay.NONE }, modifier = overlayModifier)
+            Overlay.SETTINGS -> SettingsScreen(
+                onBack = { overlay = Overlay.NONE },
+                onSignIn = {
+                    overlay = Overlay.NONE
+                    browserViewModel.onSignInClick()
+                },
+                onSignedOut = browserViewModel::onHomeClick,
+                modifier = overlayModifier,
+            )
+
             Overlay.NONE -> Unit
         }
         fullscreenView?.let { FullscreenVideo(view = it, modifier = Modifier.fillMaxSize()) }

@@ -26,7 +26,9 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,10 +45,27 @@ import io.github.z0orb.akagi.core.designsystem.describe
 import io.github.z0orb.akagi.data.prefs.AutoUpdate
 import io.github.z0orb.akagi.data.prefs.Settings
 
-/** Settings overlay v1 (PLAN §7.14, D-004): an overlay, so the WebView underneath never reloads. */
+/**
+ * Settings overlay (PLAN §7.14–7.15, D-004): an overlay, so the WebView underneath never reloads. [onSignIn] opens
+ * YouTube's sign-in in the browser; [onSignedOut] reloads it after the cookies are gone.
+ */
 @Composable
-fun SettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel: SettingsViewModel = viewModel()) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onSignIn: () -> Unit,
+    onSignedOut: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: SettingsViewModel = viewModel(),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentOnSignedOut by rememberUpdatedState(onSignedOut)
+    LaunchedEffect(state.event) {
+        val event = state.event ?: return@LaunchedEffect
+        when (event) {
+            is SettingsEvent.SignedOut -> currentOnSignedOut()
+        }
+        viewModel.onEventHandled(event.id)
+    }
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         OverlayTopBar(title = stringResource(R.string.settings_title), onBack = onBack)
         Column(
@@ -64,6 +83,16 @@ fun SettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier, viewModel:
                 settings = state.settings,
                 onPreferredCodecChange = viewModel::onPreferredCodecChanged,
                 onPrefetchChange = viewModel::onPrefetchChanged,
+            )
+            Spacer(Modifier.height(8.dp))
+            AccountSection(
+                state = state,
+                actions = AccountActions(
+                    onSignIn = onSignIn,
+                    onSignOut = viewModel::onSignOut,
+                    onImportCookies = viewModel::onImportCookies,
+                    onCookiePolicyChange = viewModel::onCookiePolicyChanged,
+                ),
             )
             Spacer(Modifier.height(24.dp))
         }
@@ -163,7 +192,7 @@ private fun updateLine(state: SettingsUiState): String = when (val update = stat
 }
 
 @Composable
-private fun <T> Choices(options: List<Pair<T, Int>>, selected: T, onSelect: (T) -> Unit) {
+internal fun <T> Choices(options: List<Pair<T, Int>>, selected: T, onSelect: (T) -> Unit) {
     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
         options.forEachIndexed { index, (value, label) ->
             SegmentedButton(
@@ -176,17 +205,17 @@ private fun <T> Choices(options: List<Pair<T, Int>>, selected: T, onSelect: (T) 
 }
 
 @Composable
-private fun SectionTitle(text: String) {
+internal fun SectionTitle(text: String) {
     Text(text, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
 }
 
 @Composable
-private fun Label(text: String) {
+internal fun Label(text: String) {
     Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
-private fun LabelValue(label: String, value: String) {
+internal fun LabelValue(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth()) {
         Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
         Text(value, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)

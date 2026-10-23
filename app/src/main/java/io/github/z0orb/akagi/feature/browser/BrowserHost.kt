@@ -112,8 +112,8 @@ private fun createWebView(
         domStorageEnabled = true
         // Pages must not start audio on their own (PLAN §7.10).
         mediaPlaybackRequiresUserGesture = true
-        userAgentString = UserAgents.chromeLike(userAgentString)
     }
+    WebViewIdentity.hide(webView.settings)
     CookieManager.getInstance().apply {
         setAcceptCookie(true)
         setAcceptThirdPartyCookies(webView, true)

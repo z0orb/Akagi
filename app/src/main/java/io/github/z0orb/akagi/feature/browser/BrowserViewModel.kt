@@ -31,6 +31,8 @@ class BrowserViewModel @Inject constructor(private val savedState: SavedStateHan
 
     fun onHomeClick() = load(YouTubeUrls.HOME)
 
+    fun onSignInClick() = load(YouTubeUrls.SIGN_IN)
+
     fun onLoadHandled(id: Long) {
         _uiState.update { state -> if (state.pendingLoad?.id == id) state.copy(pendingLoad = null) else state }
     }

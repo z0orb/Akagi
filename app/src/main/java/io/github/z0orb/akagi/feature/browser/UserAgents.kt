@@ -9,4 +9,13 @@ object UserAgents {
      */
     fun chromeLike(webViewUserAgent: String): String =
         webViewUserAgent.replace("; wv", "").replace(webViewVersionToken, "")
+
+    /**
+     * WebView names itself "Android WebView" in the client hints (Sec-CH-UA, navigator.userAgentData) as well;
+     * Google sign-in reads them to refuse embedded browsers (PLAN §7.15).
+     */
+    fun chromeBrand(brand: String): String = if (brand == WEBVIEW_BRAND) CHROME_BRAND else brand
+
+    private const val WEBVIEW_BRAND = "Android WebView"
+    private const val CHROME_BRAND = "Google Chrome"
 }

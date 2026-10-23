@@ -15,6 +15,13 @@ class UserAgentsTest {
     }
 
     @Test
+    fun `the WebView client-hint brand becomes Chrome, others stay`() {
+        assertEquals("Google Chrome", UserAgents.chromeBrand("Android WebView"))
+        assertEquals("Chromium", UserAgents.chromeBrand("Chromium"))
+        assertEquals("Not?A_Brand", UserAgents.chromeBrand("Not?A_Brand"))
+    }
+
+    @Test
     fun `a Chrome UA is unchanged`() {
         val chrome = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) " +
             "Chrome/141.0.0.0 Mobile Safari/537.36"

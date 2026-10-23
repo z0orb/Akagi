@@ -34,6 +34,19 @@
     <string name="error_storage">Couldn\'t save the file.</string>
     <string name="error_interrupted">Interrupted, tap Retry.</string>
     <string name="error_unknown">Something went wrong.</string>
+    <!-- The same errors once the sign-in state is known (PLAN §7.15) -->
+    <string name="error_members_only_sign_in">Members-only video. Sign in with a member account to download.</string>
+    <string name="error_private_sign_in">This video is private. Sign in if the owner shared it with you.</string>
+    <string name="error_age_restricted_allow">Age-restricted. To download it, turn on “Use your sign-in for downloads” in Settings.</string>
+    <string name="error_members_only_allow">Members-only video. To download it, turn on “Use your sign-in for downloads” in Settings.</string>
+    <string name="error_bot_check_allow">YouTube asked for verification. Update yt-dlp, or turn on “Use your sign-in for downloads” in Settings.</string>
+    <string name="error_private_allow">This video is private. If it was shared with you, turn on “Use your sign-in for downloads” in Settings.</string>
+    <string name="error_age_restricted_refused">Age-restricted, and YouTube didn\'t accept your account for it. Check that the account is 18+, or sign in again.</string>
+    <string name="error_members_only_refused">Members-only video, and your account isn\'t a member of this channel.</string>
+    <string name="error_bot_check_refused">YouTube asked for verification even with your sign-in. Update yt-dlp or try again later.</string>
+    <string name="error_private_refused">This video is private, and your account has no access to it.</string>
+    <string name="action_sign_in">Sign in</string>
+    <string name="action_open_settings">Settings</string>
 
     <!-- Format sheet (PLAN §7.4) -->
     <string name="sheet_loading">Getting formats…</string>
@@ -145,6 +158,27 @@
     <string name="settings_default_codec">Preferred format</string>
     <string name="settings_prefetch">Fetch formats in the background</string>
     <string name="settings_prefetch_summary">Opens the format list instantly by looking it up while you watch.</string>
+    <string name="settings_section_account">YouTube account</string>
+    <string name="settings_account_status">Status</string>
+    <string name="settings_account_signed_in">Signed in</string>
+    <string name="settings_account_signed_out">Not signed in</string>
+    <string name="settings_account_summary">Public videos never need an account. Sign in only for age-restricted, members-only or private videos.</string>
+    <string name="settings_sign_out">Sign out</string>
+    <string name="settings_import_cookies">Import cookies.txt</string>
+    <string name="settings_import_hint">If Google won\'t let you sign in here, export cookies.txt from a desktop browser where you\'re signed in to YouTube and import it.</string>
+    <string name="settings_import_signed_in">Imported. You\'re signed in to YouTube.</string>
+    <string name="settings_import_no_sign_in">Imported, but the file has no YouTube sign-in. Export it while signed in.</string>
+    <string name="settings_import_no_youtube">That file has no YouTube cookies.</string>
+    <string name="settings_import_unreadable">Couldn\'t read that file.</string>
+    <string name="settings_cookie_policy">Use your sign-in for downloads</string>
+    <string name="settings_cookie_when_needed">When needed</string>
+    <string name="settings_cookie_always">Always</string>
+    <string name="settings_cookie_never">Never</string>
+    <string name="settings_cookie_when_needed_summary">Downloads go out without your account and retry with it only when YouTube asks for one. yt-dlp warns that accounts used this way can get flagged.</string>
+    <string name="settings_cookie_always_summary">Every format lookup and download uses your account. Riskier for the account; can help when YouTube keeps asking for verification.</string>
+    <string name="settings_cookie_never_summary">Your sign-in stays in the browser only. Age-restricted and members-only videos can\'t be downloaded.</string>
+    <string name="sign_out_title">Sign out of YouTube?</string>
+    <string name="sign_out_body">This removes every cookie in Akagi\'s browser, which also signs you out of Google here.</string>
     <string name="crash_dialog_title">Akagi crashed last time</string>
     <string name="crash_dialog_body">Sharing the crash log helps fix it. It contains the error, the app version and your phone model, nothing else.</string>
     <string name="crash_dialog_share">Share log</string>

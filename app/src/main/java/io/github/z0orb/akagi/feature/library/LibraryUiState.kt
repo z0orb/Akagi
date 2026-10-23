@@ -3,6 +3,7 @@ package io.github.z0orb.akagi.feature.library
 import android.content.IntentSender
 import androidx.compose.runtime.Immutable
 import io.github.z0orb.akagi.R
+import io.github.z0orb.akagi.core.common.SignInState
 import io.github.z0orb.akagi.data.db.PlaylistSummary
 import io.github.z0orb.akagi.data.db.TrackEntity
 import io.github.z0orb.akagi.download.DownloadTask
@@ -20,6 +21,8 @@ data class LibraryUiState(
     val dialog: LibraryDialog? = null,
     /** Something the UI should do once, then acknowledge with [LibraryViewModel.onEventHandled]. */
     val event: LibraryEvent? = null,
+    /** Words the failed tasks' account errors (PLAN §7.15). */
+    val signIn: SignInState = SignInState(),
 )
 
 enum class LibraryTab(val title: Int) {

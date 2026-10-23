@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.z0orb.akagi.R
+import io.github.z0orb.akagi.account.AccountRepository
 import io.github.z0orb.akagi.core.common.AppError
 import io.github.z0orb.akagi.core.common.AppException
 import io.github.z0orb.akagi.core.common.AudioCodec
@@ -48,6 +49,7 @@ class DownloadViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val updater: YtDlpUpdater,
     private val player: PlayerConnection,
+    private val account: AccountRepository,
 ) : ViewModel() {
 
     private val currentVideo = MutableStateFlow<String?>(null)
@@ -65,11 +67,12 @@ class DownloadViewModel @Inject constructor(
         sheet.flatMapLatest { model -> statusOf(model?.videoId).map { model to it } },
         combine(currentVideo, quickFetching) { videoId, fetching -> videoId in fetching },
         event,
-    ) { fabStatus, (model, sheetStatus), fetching, event ->
+        account.state,
+    ) { fabStatus, (model, sheetStatus), fetching, event, signIn ->
         DownloadUiState(
             fab = fabStateOf(fabStatus, fetching),
             sheet = model?.let {
-                SheetUiState(it.title ?: (it.load as? Load.Ready)?.info?.title, sheetContentOf(it, sheetStatus))
+                SheetUiState(it.title ?: (it.load as? Load.Ready)?.info?.title, sheetContentOf(it, sheetStatus, signIn))
             },
             event = event,
         )
@@ -90,6 +93,7 @@ class DownloadViewModel @Inject constructor(
 
     fun onFabClick() {
         val videoId = currentVideo.value ?: return
+        account.refresh()
         sheet.value = SheetModel(videoId)
         load(videoId)
     }
@@ -97,6 +101,7 @@ class DownloadViewModel @Inject constructor(
     /** Long-press: download right away with the remembered choice, or open the sheet if there's a decision to make. */
     fun onFabLongClick() {
         val videoId = currentVideo.value ?: return
+        account.refresh()
         if (uiState.value.fab != FabState.Idle) return onFabClick()
         viewModelScope.launch {
             quickFetching.update { it + videoId }

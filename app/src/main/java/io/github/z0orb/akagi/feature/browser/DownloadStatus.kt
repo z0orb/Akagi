@@ -1,6 +1,9 @@
 package io.github.z0orb.akagi.feature.browser
 
 import io.github.z0orb.akagi.core.common.AppError
+import io.github.z0orb.akagi.core.common.SignInAdvice
+import io.github.z0orb.akagi.core.common.SignInState
+import io.github.z0orb.akagi.core.common.signInAdvice
 import io.github.z0orb.akagi.data.db.DownloadState
 import io.github.z0orb.akagi.data.db.TrackEntity
 import io.github.z0orb.akagi.download.DownloadTask
@@ -41,13 +44,23 @@ internal fun fabStateOf(status: VideoStatus?, fetching: Boolean): FabState {
     }
 }
 
-internal fun sheetContentOf(model: SheetModel, status: VideoStatus?): SheetContent {
+internal fun sheetContentOf(
+    model: SheetModel,
+    status: VideoStatus?,
+    signIn: SignInState = SignInState(),
+): SheetContent {
     val task = status?.task
     val track = status?.track
     return when {
         // A queued, running or failed download for this video always wins: it's what the user acts on next.
         task != null && !model.choosing ->
-            SheetContent.Active(task.id, task.state, status.progress?.fraction, task.error)
+            SheetContent.Active(
+                task.id,
+                task.state,
+                status.progress?.fraction,
+                task.error,
+                task.error?.signInAdvice(signIn) ?: SignInAdvice.NONE,
+            )
 
         track != null && !model.choosing -> SheetContent.InLibrary(track.codec, track.sizeBytes, track.id)
 
@@ -56,7 +69,7 @@ internal fun sheetContentOf(model: SheetModel, status: VideoStatus?): SheetConte
 
             Load.UpdatingYtDlp -> SheetContent.UpdatingYtDlp
 
-            is Load.Failed -> SheetContent.Failed(load.error)
+            is Load.Failed -> SheetContent.Failed(load.error, load.error.signInAdvice(signIn))
 
             is Load.Ready -> {
                 val choices = FormatRecommender.choicesFor(load.info)
