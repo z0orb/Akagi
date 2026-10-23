@@ -1,0 +1,13 @@
+{
+  "id": "abcdefghijk",
+  "title": "Dubbed video",
+  "duration": 600.5,
+  "live_status": "not_live",
+  "formats": [
+    {"format_id": "251-0", "format_note": "English (United States) original (default), medium", "language": "en-US", "language_preference": 10, "ext": "webm", "acodec": "opus", "vcodec": "none", "abr": 150.2, "filesize": 11262000},
+    {"format_id": "251-1", "format_note": "Spanish, medium", "language": "es", "language_preference": -1, "ext": "webm", "acodec": "opus", "vcodec": "none", "abr": 149.8, "filesize": 11232000},
+    {"format_id": "140-0", "format_note": "English (United States) original (default), medium", "language": "en-US", "language_preference": 10, "ext": "m4a", "acodec": "mp4a.40.2", "vcodec": "none", "abr": 129.5},
+    {"format_id": "140-1", "format_note": "Spanish, medium", "language": "es", "language_preference": -1, "ext": "m4a", "acodec": "mp4a.40.2", "vcodec": "none", "abr": 129.5},
+    {"format_id": "774", "format_note": "English (United States) original (default), high", "language": "en-US", "language_preference": 10, "ext": "webm", "acodec": "opus", "vcodec": "none", "abr": 256.1, "filesize": 19220000}
+  ]
+}

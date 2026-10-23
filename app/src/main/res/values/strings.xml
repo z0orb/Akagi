@@ -6,7 +6,95 @@
     <string name="action_paste">Paste link</string>
     <string name="action_clear">Clear</string>
     <string name="action_download">Download audio</string>
-    <string name="download_coming_soon">Downloading arrives in the next update</string>
+    <string name="action_quick_download">Download with last choice</string>
+    <string name="fab_downloading">Downloading</string>
+    <string name="fab_downloaded">Already downloaded</string>
+    <string name="action_downloads">Downloads</string>
+    <string name="action_back">Back</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_update_ytdlp">Update yt-dlp</string>
+    <string name="action_play">Play</string>
+    <string name="action_download_again">Download again (replace)</string>
+
+    <!-- Errors (PLAN §7.16) -->
+    <string name="error_age_restricted">Age-restricted. Sign in to YouTube in Akagi to download.</string>
+    <string name="error_members_only">Members-only video — needs a signed-in member account.</string>
+    <string name="error_bot_check">YouTube asked for verification. Update yt-dlp or sign in.</string>
+    <string name="error_extractor_outdated">YouTube changed something. Update yt-dlp.</string>
+    <string name="error_private">This video is private.</string>
+    <string name="error_unavailable">This video is unavailable.</string>
+    <string name="error_geo_blocked">This video isn\'t available in your country.</string>
+    <string name="error_live">Live streams and premieres can be downloaded after they end.</string>
+    <string name="error_network">No connection.</string>
+    <string name="error_storage">Couldn\'t save the file.</string>
+    <string name="error_interrupted">Interrupted, tap Retry.</string>
+    <string name="error_unknown">Something went wrong.</string>
+
+    <!-- Format sheet (PLAN §7.4) -->
+    <string name="sheet_loading">Getting formats…</string>
+    <string name="sheet_download">Download</string>
+    <string name="sheet_mp3_fallback">This video has no Opus or M4A audio, so it will be converted to MP3.</string>
+    <string name="sheet_recommended_hint">Transparent for most listeners — higher bitrates add size with little audible gain.</string>
+    <string name="sheet_already_downloaded">Already in your library (%1$s · %2$s)</string>
+    <string name="sheet_queued">Waiting for a free slot…</string>
+    <string name="sheet_processing">Finishing up…</string>
+    <string name="sheet_downloading">Downloading %1$d %%</string>
+    <string name="sheet_size_unknown">size unknown</string>
+    <string name="sheet_size_approx">≈ %1$s</string>
+    <string name="sheet_kbps">%1$d kbps</string>
+    <string name="codec_opus">Opus</string>
+    <string name="codec_m4a">M4A</string>
+    <string name="codec_mp3">MP3</string>
+    <string name="tier_recommended">Recommended</string>
+    <string name="tier_data_saver">Data saver</string>
+    <string name="tier_small">Small</string>
+    <string name="tier_highest">Highest (larger)</string>
+    <string name="download_queued_toast">Added to downloads</string>
+    <string name="no_player_found">No app can play this file</string>
+
+    <!-- Downloads list (temporary until the Phase 4 sidebar) -->
+    <string name="downloads_title">Downloads</string>
+    <string name="downloads_empty">Nothing downloaded yet. Open a video and tap the download button.</string>
+    <string name="downloads_active">Queue</string>
+    <string name="downloads_library">Library</string>
+    <string name="downloads_failed">Failed: %1$s</string>
+    <string name="downloads_progress">%1$d %% · %2$s</string>
+
+    <!-- Notifications -->
+    <string name="notif_channel_progress">Download progress</string>
+    <string name="notif_channel_events">Finished and failed downloads</string>
+    <string name="notif_summary">Downloading audio</string>
+    <string name="notif_summary_count">%1$d downloads in progress</string>
+    <string name="notif_queued">Waiting…</string>
+    <string name="notif_processing">Finishing up…</string>
+    <string name="notif_progress">%1$d %%</string>
+    <string name="notif_progress_speed">%1$d %% · %2$s · %3$s left</string>
+    <string name="notif_done">Downloaded</string>
+    <string name="notif_failed">Download failed</string>
+
+    <!-- Settings (PLAN §7.14) -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_ytdlp">yt-dlp</string>
+    <string name="settings_ytdlp_version">Version</string>
+    <string name="settings_ytdlp_version_unknown">Starting…</string>
+    <string name="settings_ytdlp_channel">Channel</string>
+    <string name="settings_channel_stable">Stable</string>
+    <string name="settings_channel_nightly">Nightly</string>
+    <string name="settings_check_update">Check &amp; update</string>
+    <string name="settings_updating">Updating… (waits for downloads to finish)</string>
+    <string name="settings_up_to_date">yt-dlp is up to date</string>
+    <string name="settings_updated">Updated to %1$s</string>
+    <string name="settings_last_checked">Last checked %1$s</string>
+    <string name="settings_never_checked">Never checked</string>
+    <string name="settings_auto_update">Weekly auto-update</string>
+    <string name="settings_auto_off">Off</string>
+    <string name="settings_auto_wifi">Wi-Fi only</string>
+    <string name="settings_auto_any">Any network</string>
+    <string name="settings_section_downloads">Downloads</string>
+    <string name="settings_default_codec">Preferred format</string>
+    <string name="settings_prefetch">Fetch formats in the background</string>
+    <string name="settings_prefetch_summary">Opens the format list instantly by looking it up while you watch.</string>
     <string name="crash_dialog_title">Akagi crashed last time</string>
     <string name="crash_dialog_body">Sharing the crash log helps fix it. It contains the error, the app version and your phone model, nothing else.</string>
     <string name="crash_dialog_share">Share log</string>

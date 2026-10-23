@@ -1,0 +1,10 @@
+{
+  "id": "zzzzzzzzzzz",
+  "title": "Old upload",
+  "duration": 180,
+  "live_status": "was_live",
+  "formats": [
+    {"format_id": "18", "format_note": "360p", "ext": "mp4", "acodec": "mp4a.40.2", "vcodec": "avc1.42001E", "abr": 96},
+    {"format_id": "hls-audio", "ext": "mp4", "acodec": "ac-3", "vcodec": "none", "abr": 192}
+  ]
+}

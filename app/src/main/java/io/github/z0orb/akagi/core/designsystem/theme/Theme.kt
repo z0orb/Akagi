@@ -1,8 +1,10 @@
 package io.github.z0orb.akagi.core.designsystem.theme
 
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 
 private val akagiColorScheme = darkColorScheme(
@@ -51,6 +53,8 @@ fun AkagiTheme(content: @Composable () -> Unit) {
         colorScheme = akagiColorScheme,
         typography = akagiTypography,
         shapes = akagiShapes,
-        content = content,
-    )
+    ) {
+        // Text and icons drawn outside a Surface would otherwise default to black on the dark background.
+        CompositionLocalProvider(LocalContentColor provides akagiColorScheme.onBackground, content = content)
+    }
 }

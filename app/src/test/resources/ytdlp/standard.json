@@ -1,0 +1,21 @@
+{
+  "id": "dQw4w9WgXcQ",
+  "title": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+  "duration": 213,
+  "live_status": "not_live",
+  "is_live": false,
+  "formats": [
+    {"format_id": "sb0", "format_note": "storyboard", "ext": "mhtml", "acodec": "none", "vcodec": "none", "abr": 0},
+    {"format_id": "233", "format_note": "Default", "ext": "mp4", "acodec": "unknown", "vcodec": "none", "protocol": "m3u8_native"},
+    {"format_id": "139-drc", "format_note": "low, DRC", "ext": "m4a", "acodec": "mp4a.40.5", "vcodec": "none", "abr": 48.85, "filesize": 1302543, "language_preference": -1},
+    {"format_id": "139", "format_note": "low", "ext": "m4a", "acodec": "mp4a.40.5", "vcodec": "none", "abr": 48.85, "filesize": 1302543, "language_preference": -1},
+    {"format_id": "249", "format_note": "low", "ext": "webm", "acodec": "opus", "vcodec": "none", "abr": 52.3, "filesize": 1394112, "language_preference": -1},
+    {"format_id": "250", "format_note": "low", "ext": "webm", "acodec": "opus", "vcodec": "none", "abr": 68.9, "filesize_approx": 1836480, "language_preference": -1},
+    {"format_id": "140-drc", "format_note": "medium, DRC", "ext": "m4a", "acodec": "mp4a.40.2", "vcodec": "none", "abr": 129.48, "filesize": 3449447, "language_preference": -1},
+    {"format_id": "251-drc", "format_note": "medium, DRC", "ext": "webm", "acodec": "opus", "vcodec": "none", "abr": 135.12, "filesize": 3600120, "language_preference": -1},
+    {"format_id": "140", "format_note": "medium", "ext": "m4a", "acodec": "mp4a.40.2", "vcodec": "none", "abr": 129.48, "filesize": 3449447, "language_preference": -1},
+    {"format_id": "251", "format_note": "medium", "ext": "webm", "acodec": "opus", "vcodec": "none", "abr": 135.12, "language_preference": -1},
+    {"format_id": "18", "format_note": "360p", "ext": "mp4", "acodec": "mp4a.40.2", "vcodec": "avc1.42001E", "abr": 96, "filesize": 9000000},
+    {"format_id": "137", "format_note": "1080p", "ext": "mp4", "acodec": "none", "vcodec": "avc1.640028", "tbr": 4400}
+  ]
+}
