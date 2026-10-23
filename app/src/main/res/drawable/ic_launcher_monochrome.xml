@@ -5,6 +5,11 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Drawn bow-up, turned so the bow points right like the foreground. -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="90">
     <path
         android:pathData="M46,80 L62,80 Q65,80 65,77 L65,38 C65,31 59.5,26.5 54,23.5 C48.5,26.5 43,31 43,38 L43,77 Q43,80 46,80 Z"
         android:strokeWidth="2.2"
@@ -24,4 +29,5 @@
         android:strokeColor="#FFFFFFFF"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
+    </group>
 </vector>

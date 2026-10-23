@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Akagi "Deck & Waveform": a carrier flight deck seen from above, bow up. The island sits on the
-    port (left) side like the real Akagi's; the deck stripe is an audio waveform and a download
-    chevron rides the bow. Everything stays inside the 66dp adaptive-icon safe zone.
+    Akagi "Deck & Waveform": a carrier flight deck seen from above, bow pointing right. The island sits
+    on the port (top) side like the real Akagi's; the deck stripe is an audio waveform and a download
+    chevron rides the bow. Everything stays inside the 66dp adaptive-icon safe zone. The paths are
+    drawn bow-up and turned 90° clockwise by the groups, so the shadow keeps falling down-right.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
@@ -15,10 +16,20 @@
     <group
         android:translateX="1.2"
         android:translateY="1.8">
-        <path
-            android:fillColor="#59000000"
-            android:pathData="M46,80 L62,80 Q65,80 65,77 L65,38 C65,31 59.5,26.5 54,23.5 C48.5,26.5 43,31 43,38 L43,77 Q43,80 46,80 Z" />
+        <group
+            android:pivotX="54"
+            android:pivotY="54"
+            android:rotation="90">
+            <path
+                android:fillColor="#59000000"
+                android:pathData="M46,80 L62,80 Q65,80 65,77 L65,38 C65,31 59.5,26.5 54,23.5 C48.5,26.5 43,31 43,38 L43,77 Q43,80 46,80 Z" />
+        </group>
     </group>
+
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="90">
 
     <!-- Flight deck -->
     <path android:pathData="M46,80 L62,80 Q65,80 65,77 L65,38 C65,31 59.5,26.5 54,23.5 C48.5,26.5 43,31 43,38 L43,77 Q43,80 46,80 Z">
@@ -61,4 +72,5 @@
         android:strokeColor="#FF3A78D6"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
+    </group>
 </vector>
