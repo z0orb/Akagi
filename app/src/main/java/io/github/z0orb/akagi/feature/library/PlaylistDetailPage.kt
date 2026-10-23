@@ -36,7 +36,12 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 
 /** A playlist's tracks in order; the handle on each row drags it to a new place (PLAN P4.6). */
 @Composable
-internal fun PlaylistDetailPage(detail: PlaylistDetail, actions: LibraryActions, modifier: Modifier = Modifier) {
+internal fun PlaylistDetailPage(
+    detail: PlaylistDetail,
+    actions: LibraryActions,
+    guard: ScrollGuard,
+    modifier: Modifier = Modifier,
+) {
     Column(modifier = modifier.fillMaxSize()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -60,17 +65,18 @@ internal fun PlaylistDetailPage(detail: PlaylistDetail, actions: LibraryActions,
         if (detail.tracks.isEmpty()) {
             EmptyState(stringResource(R.string.playlist_empty))
         } else {
-            ReorderableTracks(detail, actions)
+            ReorderableTracks(detail, actions, guard)
         }
     }
 }
 
 @Composable
-private fun ReorderableTracks(detail: PlaylistDetail, actions: LibraryActions) {
+private fun ReorderableTracks(detail: PlaylistDetail, actions: LibraryActions, guard: ScrollGuard) {
     val haptics = LocalHapticFeedback.current
     // Moves happen locally while dragging; the new order is written once, when the drag ends.
     var tracks by remember(detail.tracks) { mutableStateOf(detail.tracks) }
     val listState = rememberLazyListState()
+    TrackScroll(guard, listState)
     val reorderState = rememberReorderableLazyListState(listState) { from, to ->
         tracks = tracks.toMutableList().apply { add(to.index, removeAt(from.index)) }
         haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
@@ -84,6 +90,7 @@ private fun ReorderableTracks(detail: PlaylistDetail, actions: LibraryActions) {
                 ) {
                     TrackRow(
                         track,
+                        guard = guard,
                         onClick = { actions.onPlayTrack(track) },
                         startPadding = 4.dp,
                         // On the left, so the title keeps its room at Half width.

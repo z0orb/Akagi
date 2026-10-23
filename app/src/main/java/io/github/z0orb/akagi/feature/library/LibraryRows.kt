@@ -1,7 +1,7 @@
 package io.github.z0orb.akagi.feature.library
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -144,17 +144,19 @@ private fun ColumnScope.TaskStatusLines(task: DownloadTask, progress: DownloadPr
 @Composable
 internal fun TrackRow(
     track: TrackEntity,
+    guard: ScrollGuard,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     startPadding: Dp = 16.dp,
     leading: @Composable () -> Unit = {},
     trailing: @Composable () -> Unit = {},
 ) {
+    val interaction = remember { MutableInteractionSource() }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .deliberateClickable(guard, interaction, onClick)
             .padding(start = startPadding, end = 4.dp, top = 8.dp, bottom = 8.dp),
     ) {
         leading()

@@ -1,5 +1,6 @@
 package io.github.z0orb.akagi.feature.library
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.systemGestureExclusion
@@ -127,7 +129,12 @@ fun SidePanel(
                     }
                 },
             ) {
-                content()
+                // At Half the panel is narrow; a little air on its left edge keeps it from feeling cramped.
+                val startInset by animateDpAsState(
+                    targetValue = if (state.draggable.targetValue == SidePanelValue.Half) HALF_START_INSET else 0.dp,
+                    label = "panelStartInset",
+                )
+                Box(modifier = Modifier.padding(start = startInset)) { content() }
             }
         }
         if (handleVisible || showPanel) {
@@ -177,3 +184,4 @@ private const val SCRIM_ALPHA = 0.5f
 private val MIN_HALF_WIDTH = 260.dp
 private val HANDLE_WIDTH = 24.dp
 private val HANDLE_HEIGHT = 96.dp
+private val HALF_START_INSET = 12.dp
