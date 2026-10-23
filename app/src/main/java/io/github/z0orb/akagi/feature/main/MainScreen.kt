@@ -227,8 +227,13 @@ fun MainScreen(
                     },
                     modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
                 )
-                SidePanel(state = sidePanel, handleVisible = fullscreenView == null) {
-                    LibraryPanel(state = libraryState, actions = libraryActions)
+                SidePanel(state = sidePanel, handleVisible = fullscreenView == null) { narrowWidth ->
+                    LibraryPanel(
+                        state = libraryState,
+                        actions = libraryActions,
+                        open = sidePanel.isOpen,
+                        narrowWidth = narrowWidth,
+                    )
                 }
             }
             playerState.track?.let { track ->

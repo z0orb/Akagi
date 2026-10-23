@@ -1,18 +1,25 @@
 package io.github.z0orb.akagi.feature.library
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SecondaryTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -20,24 +27,38 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.z0orb.akagi.R
 import io.github.z0orb.akagi.data.db.TrackEntity
 import kotlinx.coroutines.launch
 
-/** Content of the side panel: Downloads | Playlists tabs, or an open playlist as a sub-page (PLAN §7.12). */
+/**
+ * Content of the side panel: Downloads | Playlists tabs, or an open playlist as a sub-page (PLAN §7.12). It stays
+ * composed while the panel is closed, so [open] keeps back for the rest of the screen then.
+ */
 @Composable
-fun LibraryPanel(state: LibraryUiState, actions: LibraryActions, modifier: Modifier = Modifier) {
+fun LibraryPanel(
+    state: LibraryUiState,
+    actions: LibraryActions,
+    open: Boolean,
+    narrowWidth: Dp,
+    modifier: Modifier = Modifier,
+) {
     val detail = state.openPlaylist
     val guard = rememberScrollGuard()
     // Composed after MainScreen's handlers, so back leaves the playlist before it closes the panel.
-    BackHandler(enabled = detail != null, onBack = actions.onClosePlaylist)
+    BackHandler(enabled = open && detail != null, onBack = actions.onClosePlaylist)
     if (detail != null) {
         PlaylistDetailPage(detail, actions, guard, modifier)
     } else {
-        TabPager(state, actions, guard, modifier)
+        TabPager(state, actions, guard, narrowWidth, modifier)
     }
     state.dialog?.let { LibraryDialogHost(it, state.playlists, actions) }
 }
@@ -48,6 +69,7 @@ private fun TabPager(
     state: LibraryUiState,
     actions: LibraryActions,
     guard: ScrollGuard,
+    narrowWidth: Dp,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -57,25 +79,7 @@ private fun TabPager(
         snapshotFlow { pager.settledPage }.collect { actions.onSelectTab(LibraryTab.entries[it]) }
     }
     Column(modifier = modifier.fillMaxSize()) {
-        SecondaryTabRow(
-            selectedTabIndex = pager.currentPage,
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ) {
-            LibraryTab.entries.forEach {
-                Tab(
-                    selected = pager.currentPage == it.ordinal,
-                    onClick = { scope.launch { pager.animateScrollToPage(it.ordinal) } },
-                    // Shrinks instead of wrapping when the panel is at Half width or the font scale is large.
-                    text = {
-                        Text(
-                            stringResource(it.title),
-                            maxLines = 1,
-                            autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = 14.sp),
-                        )
-                    },
-                )
-            }
-        }
+        PanelTabs(pager, narrowWidth, onSelect = { scope.launch { pager.animateScrollToPage(it) } })
         HorizontalPager(
             state = pager,
             key = { LibraryTab.entries[it] },
@@ -89,6 +93,60 @@ private fun TabPager(
         }
     }
 }
+
+/**
+ * Downloads | Playlists. Hand-rolled because Material's SecondaryTabRow re-measures through a SubcomposeLayout on
+ * every frame of a Half ↔ Full drag (~2.7 ms on the test phone, P7.9). The indicator follows the pager while drawing.
+ */
+@Composable
+private fun PanelTabs(pager: PagerState, narrowWidth: Dp, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    val tabCount = LibraryTab.entries.size
+    // Sized against the Half width, so a drag never changes the labels' constraints and they never re-lay out.
+    val labelWidth = narrowWidth / tabCount - TAB_PADDING * 2
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(TAB_HEIGHT)
+            .selectableGroup()
+            .drawWithContent {
+                drawContent()
+                val tabWidth = size.width / tabCount
+                val divider = 1.dp.toPx()
+                val indicator = 2.dp.toPx()
+                drawRect(colors.outlineVariant, Offset(0f, size.height - divider), Size(size.width, divider))
+                drawRect(
+                    colors.primary,
+                    Offset((pager.currentPage + pager.currentPageOffsetFraction) * tabWidth, size.height - indicator),
+                    Size(tabWidth, indicator),
+                )
+            },
+    ) {
+        LibraryTab.entries.forEach { tab ->
+            val selected = pager.currentPage == tab.ordinal
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(tab.ordinal) }),
+            ) {
+                // Shrinks instead of wrapping when the panel is at Half width or the font scale is large.
+                Text(
+                    stringResource(tab.title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (selected) colors.onSurface else colors.onSurfaceVariant,
+                    maxLines = 1,
+                    autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = 14.sp),
+                    modifier = Modifier.widthIn(max = labelWidth),
+                )
+            }
+        }
+    }
+}
+
+private val TAB_HEIGHT = 48.dp
+private val TAB_PADDING = 16.dp
 
 /** Every user intent the panel can raise, bundled so the panel's signatures stay small. */
 class LibraryActions(

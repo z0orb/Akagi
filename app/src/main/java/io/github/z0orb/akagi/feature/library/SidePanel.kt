@@ -1,6 +1,6 @@
 package io.github.z0orb.akagi.feature.library
 
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,25 +26,30 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.github.z0orb.akagi.R
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class SidePanelValue { Closed, Half, Full }
@@ -68,7 +73,8 @@ class SidePanelState(initialValue: SidePanelValue) {
     suspend fun toggle() = if (draggable.settledValue == SidePanelValue.Closed) open() else close()
 
     companion object {
-        private val snapSpec = spring<Float>(stiffness = 600f)
+        // Critically damped and stiff: taps and flings settle in about 170 ms without overshoot (P7.9).
+        internal val snapSpec = spring<Float>(stiffness = Spring.StiffnessMedium)
 
         val Saver: Saver<SidePanelState, SidePanelValue> = Saver(
             save = { it.draggable.settledValue },
@@ -84,13 +90,16 @@ fun rememberSidePanelState(): SidePanelState =
 /**
  * Right-edge library panel. It moves only by its handle, which is excluded from system gestures, so neither
  * the back swipe nor YouTube's own gestures can trigger it (D-013). Tapping the scrim closes it.
+ *
+ * [content] gets the content's width at Half, the narrowest open panel: parts that must not re-lay out on every
+ * frame of a drag (text auto-sizing) measure against it instead of the current width (P7.9).
  */
 @Composable
 fun SidePanel(
     state: SidePanelState,
     handleVisible: Boolean,
     modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
+    content: @Composable (narrowWidth: Dp) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -107,34 +116,47 @@ fun SidePanel(
         }
         LaunchedEffect(anchors) { state.draggable.updateAnchors(anchors) }
         val showPanel by remember { derivedStateOf { state.visibleWidthPx > 0f } }
+        // Composed shortly after start and kept while closed (measured but not placed, so never drawn): composing
+        // the whole library on the first frame of a drag dropped frames just as the finger started moving (P7.9).
+        var keepComposed by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            delay(PREWARM_DELAY_MS)
+            keepComposed = true
+        }
 
         if (showPanel) {
+            val scrim = MaterialTheme.colorScheme.scrim
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer { alpha = (state.visibleWidthPx / halfPx).coerceIn(0f, 1f) }
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = SCRIM_ALPHA))
+                    // Fades through the colour's alpha: a graphicsLayer alpha below 1 renders the whole screen
+                    // off-screen first, about 10 ms of render-thread time per frame on the test phone (P7.9).
+                    .drawBehind {
+                        drawRect(scrim, alpha = SCRIM_ALPHA * (state.visibleWidthPx / halfPx).coerceIn(0f, 1f))
+                    }
                     .pointerInput(state) { detectTapGestures { scope.launch { state.close() } } },
             )
+        }
+        if (showPanel || keepComposed) {
             Surface(
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 shadowElevation = 8.dp,
-                // Below Half the panel keeps its Half width and slides, so closing doesn't re-layout the list.
-                modifier = Modifier.layout { measurable, constraints ->
-                    val visible = state.visibleWidthPx
-                    val width = max(visible, halfPx).roundToInt()
-                    val placeable = measurable.measure(Constraints.fixed(width, constraints.maxHeight))
-                    layout(width, constraints.maxHeight) {
-                        placeable.place(constraints.maxWidth - visible.roundToInt(), 0)
-                    }
-                },
+                modifier = Modifier
+                    .then(if (showPanel) Modifier else Modifier.clearAndSetSemantics {})
+                    // Below Half the panel keeps its Half width and slides, so closing doesn't re-layout the list.
+                    .layout { measurable, constraints ->
+                        val visible = state.visibleWidthPx
+                        val width = max(visible, halfPx).roundToInt()
+                        val placeable = measurable.measure(Constraints.fixed(width, constraints.maxHeight))
+                        layout(width, constraints.maxHeight) {
+                            if (visible > 0f) placeable.place(constraints.maxWidth - visible.roundToInt(), 0)
+                        }
+                    },
             ) {
-                // At Half the panel is narrow; a little air on its left edge keeps it from feeling cramped.
-                val startInset by animateDpAsState(
-                    targetValue = if (state.draggable.targetValue == SidePanelValue.Half) HALF_START_INSET else 0.dp,
-                    label = "panelStartInset",
-                )
-                Box(modifier = Modifier.padding(start = startInset)) { content() }
+                // A little air on the left edge keeps the narrow Half panel from feeling cramped. It is constant,
+                // so it never re-lays out the content mid-drag.
+                val narrowWidth = with(density) { halfPx.toDp() } - START_INSET
+                Box(modifier = Modifier.padding(start = START_INSET)) { content(narrowWidth) }
             }
         }
         if (handleVisible || showPanel) {
@@ -163,7 +185,10 @@ private fun Handle(state: SidePanelState, onClick: () -> Unit, modifier: Modifie
                 orientation = Orientation.Horizontal,
                 // Offsets grow as the panel opens, which is a drag to the left.
                 reverseDirection = true,
-                flingBehavior = AnchoredDraggableDefaults.flingBehavior(state.draggable),
+                flingBehavior = AnchoredDraggableDefaults.flingBehavior(
+                    state.draggable,
+                    animationSpec = SidePanelState.snapSpec,
+                ),
             )
             .clickable(onClick = onClick)
             .semantics { contentDescription = description },
@@ -184,4 +209,5 @@ private const val SCRIM_ALPHA = 0.5f
 private val MIN_HALF_WIDTH = 260.dp
 private val HANDLE_WIDTH = 24.dp
 private val HANDLE_HEIGHT = 96.dp
-private val HALF_START_INSET = 12.dp
+private val START_INSET = 12.dp
+private const val PREWARM_DELAY_MS = 1_000L
