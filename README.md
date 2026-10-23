@@ -11,7 +11,9 @@
 
 ---
 
-> **Status:** early development. Releases are foundation builds while the features below are being built.
+> **Status:** in development. Browsing, downloading, the library with playlists and the background player
+> work; YouTube sign-in, error handling and polish come next. The first full release will be **v1.0.0**;
+> until then the only release (v0.0.1) is an early foundation build.
 
 ## Features
 
@@ -19,7 +21,7 @@
 - **One-tap audio download**: Opus or M4A straight from YouTube's own streams (MP3 only as a fallback), with a recommended quality that balances size and sound.
 - **Library sidebar**: a drag-out panel with your downloads (newest first) and your playlists.
 - **Player**: shuffle, repeat one or all, and a waveform seekbar. Playback continues in the background with the screen off, with minimal lock-screen and notification controls.
-- **Considerate audio**: pauses when headphones disconnect, and never fights with YouTube or other apps over playback.
+- **Considerate audio**: when headphones disconnect it pauses and turns the media volume to 0, so nothing blasts from the speaker; it never fights with YouTube or other apps over playback.
 - **Stays working**: yt-dlp can be updated from inside the app when YouTube changes.
 - Files are saved to `Music/Akagi`, so other music players can see them too.
 
