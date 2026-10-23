@@ -37,7 +37,20 @@ object YtDlpOptions {
             // Opus and M4A are remuxed as-is; only the MP3 fallback is encoded, at the chosen bitrate.
             if (codec == AudioCodec.MP3) addAll(listOf("--audio-quality", "${bitrateKbps}K"))
             addAll(listOf("--embed-metadata", "--newline", "-o", outputTemplate))
+            addAll(coverArt())
         }
+
+    /**
+     * Embeds the video's thumbnail as cover art for other players (P7.6, D-060). Akagi's plugin turns it into a
+     * centred 600 px square JPEG first; should that fail, yt-dlp's own converter still makes it a JPEG.
+     */
+    fun coverArt(): List<String> = listOf(
+        "--embed-thumbnail",
+        "--convert-thumbnails",
+        "jpg",
+        "--use-postprocessor",
+        "AkagiCover:when=before_dl",
+    )
 
     private val speedPattern = Regex("""\bat\s+(\S+/s)""")
 

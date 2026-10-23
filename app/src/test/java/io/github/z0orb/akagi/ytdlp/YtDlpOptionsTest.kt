@@ -10,8 +10,21 @@ class YtDlpOptionsTest {
     @Test
     fun `Opus and M4A are extracted without an encode bitrate`() {
         val expected =
-            listOf("-f", "251", "-x", "--audio-format", "opus", "--embed-metadata", "--newline", "-o", "/t/o")
+            listOf("-f", "251", "-x", "--audio-format", "opus", "--embed-metadata", "--newline", "-o", "/t/o") +
+                YtDlpOptions.coverArt()
         assertEquals(expected, YtDlpOptions.download("251", AudioCodec.OPUS, 135, "/t/o"))
+    }
+
+    @Test
+    fun `cover art is squared by Akagi's plugin before it is embedded`() {
+        val expected = listOf(
+            "--embed-thumbnail",
+            "--convert-thumbnails",
+            "jpg",
+            "--use-postprocessor",
+            "AkagiCover:when=before_dl",
+        )
+        assertEquals(expected, YtDlpOptions.coverArt())
     }
 
     @Test
