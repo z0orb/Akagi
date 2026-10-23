@@ -1,5 +1,6 @@
 package io.github.z0orb.akagi.feature.library
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,40 +21,57 @@ import androidx.compose.ui.unit.dp
 import io.github.z0orb.akagi.R
 import io.github.z0orb.akagi.data.db.TrackEntity
 
-private enum class LibraryTab(val title: Int) {
-    DOWNLOADS(R.string.library_tab_downloads),
-    PLAYLISTS(R.string.library_tab_playlists),
-}
-
-/** Content of the side panel: Downloads | Playlists tabs (PLAN §7.12). */
+/** Content of the side panel: Downloads | Playlists tabs, or an open playlist as a sub-page (PLAN §7.12). */
 @Composable
 fun LibraryPanel(state: LibraryUiState, actions: LibraryActions, modifier: Modifier = Modifier) {
-    var tab by rememberSaveable { mutableStateOf(LibraryTab.DOWNLOADS) }
-    Column(modifier = modifier.fillMaxSize()) {
-        SecondaryTabRow(
-            selectedTabIndex = tab.ordinal,
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ) {
-            LibraryTab.entries.forEach {
-                Tab(
-                    selected = tab == it,
-                    onClick = { tab = it },
-                    text = { Text(stringResource(it.title)) },
-                )
+    val detail = state.openPlaylist
+    // Composed after MainScreen's handlers, so back leaves the playlist before it closes the panel.
+    BackHandler(enabled = detail != null, onBack = actions.onClosePlaylist)
+    if (detail != null) {
+        PlaylistDetailPage(detail, actions, modifier)
+    } else {
+        Column(modifier = modifier.fillMaxSize()) {
+            SecondaryTabRow(
+                selectedTabIndex = state.tab.ordinal,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ) {
+                LibraryTab.entries.forEach {
+                    Tab(
+                        selected = state.tab == it,
+                        onClick = { actions.onSelectTab(it) },
+                        text = { Text(stringResource(it.title)) },
+                    )
+                }
+            }
+            when (state.tab) {
+                LibraryTab.DOWNLOADS -> DownloadsTab(state, actions)
+                LibraryTab.PLAYLISTS -> PlaylistsTab(state.playlists, actions)
             }
         }
-        when (tab) {
-            LibraryTab.DOWNLOADS -> DownloadsTab(state, actions)
-            LibraryTab.PLAYLISTS -> EmptyState(stringResource(R.string.playlists_empty))
-        }
     }
+    state.dialog?.let { LibraryDialogHost(it, state.playlists, actions) }
 }
 
-/** Every user intent the panel can raise, bundled so the panel's signature stays small. */
+/** Every user intent the panel can raise, bundled so the panel's signatures stay small. */
 class LibraryActions(
+    val onSelectTab: (LibraryTab) -> Unit,
     val onPlayTrack: (TrackEntity) -> Unit,
     val onCancelTask: (Long) -> Unit,
     val onRetryTask: (Long) -> Unit,
+    val onAddToPlaylist: (TrackEntity) -> Unit,
+    val onOpenPlaylist: (Long) -> Unit,
+    val onClosePlaylist: () -> Unit,
+    val onNewPlaylist: () -> Unit,
+    val onRenamePlaylist: (id: Long, name: String) -> Unit,
+    val onDeletePlaylist: (id: Long, name: String) -> Unit,
+    val onRemoveFromPlaylist: (playlistId: Long, trackId: Long) -> Unit,
+    val onReorder: (playlistId: Long, trackIds: List<Long>) -> Unit,
+    val onDismissDialog: () -> Unit,
+    val onToggleMembership: (Long) -> Unit,
+    val onCreatePlaylistInline: (String) -> Unit,
+    val onConfirmMemberships: () -> Unit,
+    val onSubmitPlaylistName: (String) -> Unit,
+    val onConfirmDeletePlaylist: () -> Unit,
 )
 
 @Composable
@@ -77,7 +95,15 @@ private fun DownloadsTab(state: LibraryUiState, actions: LibraryActions) {
             }
         }
         items(state.tracks, key = { "track-${it.id}" }, contentType = { "track" }) { track ->
-            TrackRow(track, onClick = { actions.onPlayTrack(track) })
+            TrackRow(
+                track,
+                onClick = { actions.onPlayTrack(track) },
+                trailing = {
+                    RowMenu(
+                        listOf(MenuEntry(R.string.track_add_to_playlist) { actions.onAddToPlaylist(track) }),
+                    )
+                },
+            )
         }
     }
 }

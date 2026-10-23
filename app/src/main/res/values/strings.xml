@@ -56,7 +56,28 @@
     <!-- Library side panel (PLAN §7.12) -->
     <string name="library_tab_downloads">Downloads</string>
     <string name="library_tab_playlists">Playlists</string>
-    <string name="playlists_empty">No playlists yet.</string>
+    <string name="playlists_empty">No playlists yet. Create one, or add a track from its ⋮ menu.</string>
+    <string name="playlist_empty">This playlist is empty. Add tracks from the Downloads tab.</string>
+    <string name="playlist_new">New playlist</string>
+    <string name="playlist_name_hint">Playlist name</string>
+    <string name="playlist_name_blank">Enter a name</string>
+    <string name="playlist_name_too_long">At most 60 characters</string>
+    <plurals name="playlist_track_count">
+        <item quantity="one">%1$d track</item>
+        <item quantity="other">%1$d tracks</item>
+    </plurals>
+    <string name="playlist_rename">Rename</string>
+    <string name="playlist_delete">Delete playlist</string>
+    <string name="playlist_delete_title">Delete “%1$s”?</string>
+    <string name="playlist_delete_body">The playlist is removed. Its tracks stay in Downloads.</string>
+    <string name="playlist_remove_track">Remove from playlist</string>
+    <string name="playlist_reorder">Drag to reorder</string>
+    <string name="track_add_to_playlist">Add to playlist</string>
+    <string name="track_actions">More options</string>
+    <string name="action_create">Create</string>
+    <string name="action_save">Save</string>
+    <string name="action_done">Done</string>
+    <string name="action_delete">Delete</string>
     <string name="downloads_empty">Nothing downloaded yet. Open a video and tap the download button.</string>
     <string name="downloads_active">Queue</string>
     <string name="downloads_library">Library</string>

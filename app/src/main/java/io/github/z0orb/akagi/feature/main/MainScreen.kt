@@ -108,9 +108,24 @@ fun MainScreen(
     }
     val libraryActions = remember(libraryViewModel, context) {
         LibraryActions(
+            onSelectTab = libraryViewModel::onSelectTab,
             onPlayTrack = { openFile(context, it.contentUri, it.codec) },
             onCancelTask = libraryViewModel::onCancelTask,
             onRetryTask = libraryViewModel::onRetryTask,
+            onAddToPlaylist = libraryViewModel::onAddToPlaylistClick,
+            onOpenPlaylist = libraryViewModel::onOpenPlaylist,
+            onClosePlaylist = libraryViewModel::onClosePlaylist,
+            onNewPlaylist = libraryViewModel::onNewPlaylistClick,
+            onRenamePlaylist = libraryViewModel::onRenamePlaylistClick,
+            onDeletePlaylist = libraryViewModel::onDeletePlaylistClick,
+            onRemoveFromPlaylist = libraryViewModel::onRemoveFromPlaylist,
+            onReorder = libraryViewModel::onReorder,
+            onDismissDialog = libraryViewModel::onDismissDialog,
+            onToggleMembership = libraryViewModel::onToggleMembership,
+            onCreatePlaylistInline = libraryViewModel::onCreatePlaylistInline,
+            onConfirmMemberships = libraryViewModel::onConfirmMemberships,
+            onSubmitPlaylistName = libraryViewModel::onSubmitPlaylistName,
+            onConfirmDeletePlaylist = libraryViewModel::onConfirmDeletePlaylist,
         )
     }
 

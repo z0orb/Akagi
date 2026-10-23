@@ -12,6 +12,7 @@ import io.github.z0orb.akagi.core.common.Clock
 import io.github.z0orb.akagi.core.common.SystemClock
 import io.github.z0orb.akagi.data.db.AkagiDatabase
 import io.github.z0orb.akagi.data.db.DownloadTaskDao
+import io.github.z0orb.akagi.data.db.PlaylistDao
 import io.github.z0orb.akagi.data.db.TrackDao
 import io.github.z0orb.akagi.data.storage.AudioStore
 import io.github.z0orb.akagi.data.storage.MediaStoreAudioStore
@@ -54,6 +55,9 @@ abstract class DataModule {
 
         @Provides
         fun provideDownloadTaskDao(database: AkagiDatabase): DownloadTaskDao = database.downloadTaskDao()
+
+        @Provides
+        fun providePlaylistDao(database: AkagiDatabase): PlaylistDao = database.playlistDao()
 
         @Provides
         @Singleton

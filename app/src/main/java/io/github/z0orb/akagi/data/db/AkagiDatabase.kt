@@ -18,4 +18,6 @@ abstract class AkagiDatabase : RoomDatabase() {
     abstract fun trackDao(): TrackDao
 
     abstract fun downloadTaskDao(): DownloadTaskDao
+
+    abstract fun playlistDao(): PlaylistDao
 }
