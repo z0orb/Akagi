@@ -13,6 +13,7 @@ import android.view.View
 import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -118,15 +119,24 @@ private fun createWebView(
         setAcceptCookie(true)
         setAcceptThirdPartyCookies(webView, true)
     }
-    webView.webViewClient = AkagiWebViewClient(onPageChange, controller::onRendererGone)
+    webView.webViewClient = AkagiWebViewClient(onPageChange, controller)
     webView.webChromeClient = FullscreenChromeClient(controller)
     return webView
 }
 
 private class AkagiWebViewClient(
     private val onPageChange: (String, Boolean) -> Unit,
-    private val onRendererGone: () -> Unit,
+    private val controller: BrowserController,
 ) : WebViewClient() {
+
+    override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+        controller.onPageStarted()
+    }
+
+    // Akagi shows its own message over the WebView's error page, which is unreadable on the dark background.
+    override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+        if (request.isForMainFrame) controller.onMainFrameError(PageError.fromWebViewError(error.errorCode))
+    }
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         if (!request.isForMainFrame) return false
@@ -150,7 +160,7 @@ private class AkagiWebViewClient(
     // Without this the WebView aborts the whole app when its renderer crashes or is killed for memory,
     // which Android does routinely in the background. Returning true lets Akagi rebuild the WebView.
     override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
-        onRendererGone()
+        controller.onRendererGone()
         return true
     }
 

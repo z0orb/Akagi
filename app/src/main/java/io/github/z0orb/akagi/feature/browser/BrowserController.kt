@@ -32,6 +32,24 @@ class BrowserController {
     /** Whether the page is playing audible media, as last reported by [WebMediaBridge]. */
     internal var webMediaAudible = false
 
+    /** Why the current page failed to load, shown by Akagi instead of the WebView's own error page. */
+    var pageError: PageError? by mutableStateOf(null)
+        private set
+
+    internal fun onPageStarted() {
+        pageError = null
+    }
+
+    internal fun onMainFrameError(error: PageError) {
+        pageError = error
+    }
+
+    /** Loads the failed page again. */
+    fun retry() {
+        pageError = null
+        webView?.reload()
+    }
+
     internal fun onRendererGone() {
         clearFullscreen()
         webMediaAudible = false

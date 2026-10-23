@@ -48,6 +48,7 @@ import io.github.z0orb.akagi.feature.browser.DownloadViewModel
 import io.github.z0orb.akagi.feature.browser.FormatSheet
 import io.github.z0orb.akagi.feature.browser.FormatSheetActions
 import io.github.z0orb.akagi.feature.browser.FullscreenVideo
+import io.github.z0orb.akagi.feature.browser.PageErrorView
 import io.github.z0orb.akagi.feature.browser.rememberBrowserController
 import io.github.z0orb.akagi.feature.library.LibraryActions
 import io.github.z0orb.akagi.feature.library.LibraryEvent
@@ -214,6 +215,9 @@ fun MainScreen(
                     onWebAudioUnplug = playerViewModel::onWebAudioUnplugged,
                     modifier = Modifier.fillMaxSize(),
                 )
+                controller.pageError?.let { error ->
+                    PageErrorView(error, onRetry = controller::retry, modifier = Modifier.fillMaxSize())
+                }
                 DownloadFab(
                     visible = browserState.currentVideo != null && fullscreenView == null,
                     state = downloadState.fab,

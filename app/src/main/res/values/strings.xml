@@ -13,6 +13,10 @@
     <string name="action_back">Back</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_retry">Retry</string>
+    <string name="page_offline_title">No connection</string>
+    <string name="page_offline_detail">YouTube can\'t load without the internet. Your downloads still play offline.</string>
+    <string name="page_failed_title">Couldn\'t load YouTube</string>
+    <string name="page_failed_detail">Something went wrong loading this page. Try again in a moment.</string>
     <string name="action_update_ytdlp">Update yt-dlp</string>
     <string name="action_play">Play</string>
     <string name="action_shuffle">Shuffle</string>
