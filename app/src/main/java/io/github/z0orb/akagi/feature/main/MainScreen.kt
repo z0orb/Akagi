@@ -1,159 +1,106 @@
 package io.github.z0orb.akagi.feature.main
 
-import androidx.compose.foundation.Image
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import io.github.z0orb.akagi.BuildConfig
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.z0orb.akagi.R
+import io.github.z0orb.akagi.feature.browser.BrowserHost
+import io.github.z0orb.akagi.feature.browser.BrowserTopBar
+import io.github.z0orb.akagi.feature.browser.BrowserViewModel
+import io.github.z0orb.akagi.feature.browser.DownloadFab
+import io.github.z0orb.akagi.feature.browser.FullscreenVideo
+import io.github.z0orb.akagi.feature.browser.rememberBrowserController
 
 /**
- * App root layout: top bar, then the content area that will host the YouTube WebView (Phase 2).
- * The sidebar and player slots are added in Phases 4 and 5.
+ * App root (PLAN §5): top bar, the WebView area with its overlays, and the fullscreen video layer.
+ * The sidebar (Phase 4) and player (Phase 5) slots are marked below.
  */
 @Composable
-fun MainScreen(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .windowInsetsPadding(WindowInsets.safeDrawing),
-    ) {
-        AkagiTopBar()
-        FoundationPlaceholder(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-        )
-    }
-}
+fun MainScreen(
+    modifier: Modifier = Modifier,
+    browserViewModel: BrowserViewModel = viewModel(),
+    mainViewModel: MainViewModel = viewModel(),
+) {
+    val browserState by browserViewModel.uiState.collectAsStateWithLifecycle()
+    val mainState by mainViewModel.uiState.collectAsStateWithLifecycle()
+    val controller = rememberBrowserController()
+    val context = LocalContext.current
+    val fullscreenView = controller.fullscreenView
 
-@Composable
-private fun AkagiTopBar(modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .padding(start = 16.dp, end = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_stat_akagi),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(26.dp),
-        )
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            modifier = Modifier
-                .weight(1f)
-                .height(40.dp),
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_search),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    text = stringResource(R.string.top_bar_link_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+    LaunchedEffect(browserState.pendingLoad) {
+        browserState.pendingLoad?.let { load ->
+            controller.load(load.url)
+            browserViewModel.onLoadHandled(load.id)
         }
-        // Settings arrive in Phase 3; the button is shown now to settle the top bar layout.
-        IconButton(onClick = {}, enabled = false) {
-            Icon(
-                painter = painterResource(R.drawable.ic_settings),
-                contentDescription = stringResource(R.string.action_settings),
+    }
+
+    // Back order (PLAN §7.1): fullscreen → [player, sidebar: later phases] → WebView history → exit.
+    // The handler registered last wins, so the most specific one comes last.
+    BackHandler(enabled = browserState.canGoBack) { controller.goBack() }
+    BackHandler(enabled = fullscreenView != null) { controller.exitFullscreen() }
+
+    Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+            BrowserTopBar(onSubmit = browserViewModel::onQuerySubmit, onHomeClick = browserViewModel::onHomeClick)
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                BrowserHost(
+                    controller = controller,
+                    startUrl = browserState.startUrl,
+                    onPageChange = browserViewModel::onPageChange,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                DownloadFab(
+                    visible = browserState.currentVideo != null && fullscreenView == null,
+                    onClick = { showToast(context, R.string.download_coming_soon) },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+                )
+                // Sidebar handle overlay: Phase 4.
+            }
+            // Mini player: Phase 5.
+        }
+        // Sidebar panel: Phase 4.
+        fullscreenView?.let { FullscreenVideo(view = it, modifier = Modifier.fillMaxSize()) }
+
+        if (mainState.crashReport != null) {
+            CrashReportDialog(
+                onShare = {
+                    mainState.crashReport?.let { shareCrashReport(context, it) }
+                    mainViewModel.onCrashReportHandled()
+                },
+                onDismiss = mainViewModel::onCrashReportHandled,
             )
         }
     }
 }
 
-@Composable
-private fun FoundationPlaceholder(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        AppIconPreview(modifier = Modifier.size(128.dp))
-        Spacer(Modifier.height(24.dp))
-        Text(
-            text = stringResource(R.string.foundation_title),
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.foundation_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(16.dp))
-        Text(
-            text = stringResource(R.string.foundation_version, BuildConfig.VERSION_NAME),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-    }
+private fun showToast(context: Context, message: Int) {
+    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 }
 
-/** Draws the adaptive icon layers the way a launcher shows them (the centre 72 of 108 units). */
-@Composable
-private fun AppIconPreview(modifier: Modifier = Modifier) {
-    Box(modifier = modifier.clip(RoundedCornerShape(32.dp))) {
-        val launcherCrop = Modifier
-            .matchParentSize()
-            .graphicsLayer(scaleX = 1.5f, scaleY = 1.5f)
-        Image(
-            painter = painterResource(R.drawable.ic_launcher_background),
-            contentDescription = null,
-            modifier = launcherCrop,
-        )
-        Image(
-            painter = painterResource(R.drawable.ic_launcher_foreground),
-            contentDescription = null,
-            modifier = launcherCrop,
-        )
-    }
+private fun shareCrashReport(context: Context, report: String) {
+    val send = Intent(Intent.ACTION_SEND)
+        .setType("text/plain")
+        .putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.crash_share_subject))
+        .putExtra(Intent.EXTRA_TEXT, report)
+    context.startActivity(Intent.createChooser(send, context.getString(R.string.crash_dialog_share)))
 }

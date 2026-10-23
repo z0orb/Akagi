@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!--
         allowBackup is off on purpose: a restored database would point at Music/Akagi files the
         reinstalled app no longer owns (see PLAN D-005).
