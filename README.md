@@ -11,8 +11,8 @@
 
 ---
 
-> **Status:** in development. Browsing, downloading, the library with playlists and the background player
-> work; YouTube sign-in, error handling and polish come next. The first full release will be **v1.0.0**;
+> **Status:** in development. Browsing, downloading, the library with playlists, the background player and
+> YouTube sign-in work; polish and performance come next. The first full release will be **v1.0.0**;
 > until then the only release (v0.0.1) is an early foundation build.
 
 ## Features
@@ -23,6 +23,8 @@
 - **Player**: shuffle, repeat one or all, and a waveform seekbar. Playback continues in the background with the screen off, with minimal lock-screen and notification controls.
 - **Considerate audio**: when headphones disconnect it pauses and turns the media volume to 0, so nothing blasts from the speaker; it never fights with YouTube or other apps over playback.
 - **Stays working**: yt-dlp can be updated from inside the app when YouTube changes.
+- **Optional YouTube sign-in**: public videos never need an account. Sign in inside the app to download
+  age-restricted, members-only or private videos; by default your account is only used when YouTube asks for it.
 - Files are saved to `Music/Akagi`, so other music players can see them too.
 
 ## Install
