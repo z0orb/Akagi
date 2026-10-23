@@ -30,7 +30,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -175,30 +177,47 @@ internal fun TrackRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val colors = MaterialTheme.colorScheme
-                Text(
-                    if (track.missing) {
-                        stringResource(
-                            R.string.track_missing,
-                        )
-                    } else {
-                        SizeFormatter.megabytes(track.sizeBytes)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (track.missing) colors.error else colors.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    // Weighted, so at narrow widths the size shortens and the codec chip stays whole.
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                if (!track.missing) {
-                    Spacer(Modifier.width(8.dp))
-                    CodecChip(codecLabel(track.codec))
-                }
-            }
+            val colors = MaterialTheme.colorScheme
+            SizeLine(
+                text = if (track.missing) {
+                    stringResource(
+                        R.string.track_missing,
+                    )
+                } else {
+                    SizeFormatter.megabytes(track.sizeBytes)
+                },
+                color = if (track.missing) colors.error else colors.onSurfaceVariant,
+                chip = if (track.missing) null else codecLabel(track.codec),
+            )
         }
         trailing()
+    }
+}
+
+/**
+ * The size ("3.4 MB", R6) always shows in full; the codec chip follows only when it fits beside it whole, so a
+ * narrow row (Half panel, playlist page with drag handles, large fonts) drops the chip instead of cutting the size.
+ */
+@Composable
+private fun SizeLine(text: String, color: Color, chip: String?) {
+    Layout(
+        content = {
+            Text(text, style = MaterialTheme.typography.bodySmall, color = color, maxLines = 1, softWrap = false)
+            if (chip != null) CodecChip(chip)
+        },
+    ) { measurables, constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val size = measurables[0].measure(loose)
+        val gap = CHIP_GAP.roundToPx()
+        val codec = measurables.getOrNull(1)?.measure(loose)?.takeIf {
+            size.width + gap + it.width <=
+                constraints.maxWidth
+        }
+        val height = maxOf(size.height, codec?.height ?: 0)
+        layout(constraints.maxWidth, height) {
+            size.placeRelative(0, (height - size.height) / 2)
+            codec?.placeRelative(size.width + gap, (height - codec.height) / 2)
+        }
     }
 }
 
@@ -245,3 +264,4 @@ internal fun RowMenu(entries: List<MenuEntry>, modifier: Modifier = Modifier) {
 }
 
 private const val MISSING_ALPHA = 0.4f
+private val CHIP_GAP = 8.dp

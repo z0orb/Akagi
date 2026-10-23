@@ -1,6 +1,12 @@
 package io.github.z0orb.akagi.feature.library
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -36,6 +42,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.z0orb.akagi.R
+import io.github.z0orb.akagi.core.designsystem.theme.AkagiMotion
 import io.github.z0orb.akagi.data.db.TrackEntity
 import kotlinx.coroutines.launch
 
@@ -55,10 +62,24 @@ fun LibraryPanel(
     val guard = rememberScrollGuard()
     // Composed after MainScreen's handlers, so back leaves the playlist before it closes the panel.
     BackHandler(enabled = open && detail != null, onBack = actions.onClosePlaylist)
-    if (detail != null) {
-        PlaylistDetailPage(detail, actions, guard, modifier)
-    } else {
-        TabPager(state, actions, guard, narrowWidth, modifier)
+    // A playlist slides in over the tabs and back out, like a page pushed on a stack.
+    AnimatedContent(
+        targetState = detail,
+        contentKey = { it?.id },
+        transitionSpec = {
+            val opening = targetState != null
+            val sign = if (opening) 1 else -1
+            (fadeIn(AkagiMotion.enter()) + slideInHorizontally(AkagiMotion.enter()) { sign * it / 4 }) togetherWith
+                (fadeOut(AkagiMotion.exit()) + slideOutHorizontally(AkagiMotion.exit()) { -sign * it / 4 })
+        },
+        label = "playlistPage",
+        modifier = modifier,
+    ) { shown ->
+        if (shown != null) {
+            PlaylistDetailPage(shown, actions, guard)
+        } else {
+            TabPager(state, actions, guard, narrowWidth)
+        }
     }
     state.dialog?.let { LibraryDialogHost(it, state.playlists, actions) }
 }

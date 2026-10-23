@@ -24,9 +24,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,6 +42,7 @@ import io.github.z0orb.akagi.core.common.AudioCodec
 import io.github.z0orb.akagi.core.common.SignInAdvice
 import io.github.z0orb.akagi.core.common.SizeFormatter
 import io.github.z0orb.akagi.core.common.accountCanHelp
+import io.github.z0orb.akagi.core.designsystem.ChoiceRow
 import io.github.z0orb.akagi.core.designsystem.codecLabel
 import io.github.z0orb.akagi.core.designsystem.describe
 import io.github.z0orb.akagi.core.designsystem.isRetryable
@@ -159,15 +157,12 @@ private fun ColumnScope.Choose(content: SheetContent.Choose, actions: FormatShee
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     } else if (codecs.size > 1) {
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            codecs.forEachIndexed { index, codec ->
-                SegmentedButton(
-                    selected = codec == content.codec,
-                    onClick = { actions.onCodecSelected(codec) },
-                    shape = SegmentedButtonDefaults.itemShape(index, codecs.size),
-                ) { Text(codecLabel(codec)) }
-            }
-        }
+        ChoiceRow(
+            options = codecs.map { it to codecLabel(it) },
+            selected = content.codec,
+            onSelect = actions.onCodecSelected,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
     Column(modifier = Modifier.selectableGroup()) {
         content.choices.options[content.codec].orEmpty().forEach { option ->

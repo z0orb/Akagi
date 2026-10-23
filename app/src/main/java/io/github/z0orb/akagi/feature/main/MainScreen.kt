@@ -11,6 +11,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +44,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.z0orb.akagi.R
+import io.github.z0orb.akagi.core.designsystem.theme.AkagiMotion
 import io.github.z0orb.akagi.feature.browser.BrowserHost
 import io.github.z0orb.akagi.feature.browser.BrowserTopBar
 import io.github.z0orb.akagi.feature.browser.BrowserViewModel
@@ -64,6 +70,9 @@ import kotlinx.coroutines.launch
 
 /** Full-screen pages drawn over the browser, so the WebView never leaves composition (D-004). */
 private enum class Overlay { NONE, SETTINGS }
+
+// Overlays slide in by a tenth of the screen while they fade, a hint of direction without a full swipe.
+private const val OVERLAY_SLIDE_DIVISOR = 10
 
 /**
  * App root (PLAN §5): top bar, the WebView area with its overlays, the player, and the fullscreen video layer.
@@ -250,19 +259,23 @@ fun MainScreen(
                 )
             }
         }
-        val overlayModifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
-        when (overlay) {
-            Overlay.SETTINGS -> SettingsScreen(
+        AnimatedVisibility(
+            visible = overlay == Overlay.SETTINGS,
+            enter =
+                fadeIn(AkagiMotion.enter()) + slideInHorizontally(AkagiMotion.enter()) { it / OVERLAY_SLIDE_DIVISOR },
+            exit = fadeOut(AkagiMotion.exit()) + slideOutHorizontally(AkagiMotion.exit()) {
+                it / OVERLAY_SLIDE_DIVISOR
+            },
+        ) {
+            SettingsScreen(
                 onBack = { overlay = Overlay.NONE },
                 onSignIn = {
                     overlay = Overlay.NONE
                     browserViewModel.onSignInClick()
                 },
                 onSignedOut = browserViewModel::onHomeClick,
-                modifier = overlayModifier,
+                modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing),
             )
-
-            Overlay.NONE -> Unit
         }
         fullscreenView?.let { FullscreenVideo(view = it, modifier = Modifier.fillMaxSize()) }
 

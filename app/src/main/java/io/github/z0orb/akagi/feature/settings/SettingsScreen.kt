@@ -20,9 +20,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.z0orb.akagi.R
 import io.github.z0orb.akagi.core.common.AudioCodec
+import io.github.z0orb.akagi.core.designsystem.ChoiceRow
 import io.github.z0orb.akagi.core.designsystem.OverlayTopBar
 import io.github.z0orb.akagi.core.designsystem.describe
 import io.github.z0orb.akagi.data.prefs.AutoUpdate
@@ -193,15 +191,12 @@ private fun updateLine(state: SettingsUiState): String = when (val update = stat
 
 @Composable
 internal fun <T> Choices(options: List<Pair<T, Int>>, selected: T, onSelect: (T) -> Unit) {
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        options.forEachIndexed { index, (value, label) ->
-            SegmentedButton(
-                selected = value == selected,
-                onClick = { onSelect(value) },
-                shape = SegmentedButtonDefaults.itemShape(index, options.size),
-            ) { Text(stringResource(label)) }
-        }
-    }
+    ChoiceRow(
+        options = options.map { (value, label) -> value to stringResource(label) },
+        selected = selected,
+        onSelect = onSelect,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
