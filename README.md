@@ -11,9 +11,8 @@
 
 ---
 
-> **Status:** in development. Browsing, downloading, the library with playlists, the background player and
-> YouTube sign-in work; polish and performance come next. The first full release will be **v1.0.0**;
-> until then the only release (v0.0.1) is an early foundation build.
+> **Status:** feature-complete and in final testing for **v1.0.0**, the first full release. Until then the only
+> release (v0.0.1) is an early foundation build.
 
 ## Features
 
@@ -21,6 +20,7 @@
 - **One-tap audio download**: Opus or M4A straight from YouTube's own streams (MP3 only as a fallback), with a recommended quality that balances size and sound.
 - **Library sidebar**: a drag-out panel with your downloads (newest first) and your playlists.
 - **Player**: shuffle, repeat one or all, and a waveform seekbar. Playback continues in the background with the screen off, with minimal lock-screen and notification controls.
+- **Cover art**: each download carries the video's thumbnail as square cover art, so other music players show it too.
 - **Considerate audio**: when headphones disconnect it pauses and turns the media volume to 0, so nothing blasts from the speaker; it never fights with YouTube or other apps over playback.
 - **Stays working**: yt-dlp can be updated from inside the app when YouTube changes.
 - **Optional YouTube sign-in**: public videos never need an account. Sign in inside the app to download
@@ -31,9 +31,28 @@
 
 1. Open the [latest release](../../releases/latest) on your phone and download `Akagi-vX.Y.Z-arm64-v8a.apk`.
 2. Open it and allow installing from your browser when Android asks.
-3. Updates install over the existing app and keep your library.
+3. To update, install a newer APK the same way. It installs over the existing app and keeps your library and playlists.
 
-Requires **Android 10 or newer** on a 64-bit (arm64) phone.
+Requires **Android 10 or newer** on a 64-bit (arm64) phone. The first start takes a few seconds longer while Akagi
+unpacks yt-dlp, Python and FFmpeg (about 130 MB).
+
+## Using Akagi
+
+- Open a video, then tap the download button. Long-press it to download straight away in your preferred format.
+- Drag the handle on the right edge to open your library. In the panel, swipe right on Downloads to narrow or close
+  it, and swipe left on Playlists to widen it.
+- Tap a track to play it; the whole list (or the playlist you are in) becomes the queue.
+
+## Troubleshooting
+
+- **"YouTube changed something"**: YouTube changes often. Open Settings and tap **Check & update** to get the
+  newest yt-dlp. Akagi also checks once a week on Wi-Fi.
+- **Age-restricted, members-only or private videos**: sign in under Settings → YouTube account. Public videos never
+  need an account.
+- **The format list takes a while**: finding the formats of a video takes 10–20 seconds on a typical phone. With
+  "Fetch formats in the background" on (the default) this happens while you watch, so the list is usually ready.
+- **After reinstalling Akagi** (uninstalling first), it doesn't know the songs it saved before. They stay in
+  `Music/Akagi` and play in other apps; downloading one again saves a second copy.
 
 ### If music stops with the screen off
 
@@ -77,7 +96,8 @@ Akagi is free software under the [GNU GPL v3](LICENSE). It bundles or builds on:
 | [FFmpeg](https://ffmpeg.org) | GPL / LGPL |
 | [Python](https://www.python.org) | PSF License |
 | [QuickJS](https://bellard.org/quickjs/) | MIT |
-| AndroidX, Media3, Material components | Apache 2.0 |
+| [mutagen](https://github.com/quodlibet/mutagen) | GPL-2.0-or-later |
+| AndroidX, Media3, Material components, Kotlin, Hilt, Coil, Reorderable | Apache 2.0 |
 
 The app icon is original artwork made for Akagi.
 
