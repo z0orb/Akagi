@@ -118,6 +118,7 @@
     <string name="player_repeat_off">Repeat off</string>
     <string name="player_repeat_all">Repeat all</string>
     <string name="player_repeat_one">Repeat one</string>
+    <string name="player_skipped_missing">Skipped a file that was deleted or moved outside Akagi.</string>
 
     <!-- Settings (PLAN §7.14) -->
     <string name="settings_title">Settings</string>

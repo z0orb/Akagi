@@ -3,11 +3,13 @@ package io.github.z0orb.akagi.playback
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Intent
+import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -48,6 +50,11 @@ class PlaybackService : MediaSessionService() {
             .build()
         player.setShuffleOrder(StartFirstShuffleOrder.startingAt(0))
         player.addListener(ShuffleFromCurrentTrack(player))
+        player.addListener(
+            SkipMissingFiles(player) {
+                Toast.makeText(this, R.string.player_skipped_missing, Toast.LENGTH_SHORT).show()
+            },
+        )
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider.Builder(this)
                 .setChannelName(R.string.notif_channel_playback)
@@ -89,6 +96,19 @@ class PlaybackService : MediaSessionService() {
     /** The files carry tags such as the artist; the system shows only what Akagi sets, title and artwork (R9). */
     private class TitleAndArtworkOnly(player: Player) : ForwardingPlayer(player) {
         override fun getMediaMetadata(): MediaMetadata = currentMediaItem?.mediaMetadata ?: MediaMetadata.EMPTY
+    }
+
+    /**
+     * A queued file deleted outside Akagi would stop playback with an error; it leaves the queue instead
+     * and the next track plays. The library flags it as missing on the next resume (D-042).
+     */
+    private class SkipMissingFiles(private val player: ExoPlayer, private val onSkip: () -> Unit) : Player.Listener {
+        override fun onPlayerError(error: PlaybackException) {
+            if (error.errorCode != PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND) return
+            player.removeMediaItem(player.currentMediaItemIndex)
+            if (player.mediaItemCount > 0) player.prepare()
+            onSkip()
+        }
     }
 
     /** Turning shuffle on mid-queue starts the shuffled order at the current track, so none is skipped. */
