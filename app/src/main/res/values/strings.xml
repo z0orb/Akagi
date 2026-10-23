@@ -15,6 +15,7 @@
     <string name="action_retry">Retry</string>
     <string name="action_update_ytdlp">Update yt-dlp</string>
     <string name="action_play">Play</string>
+    <string name="action_shuffle">Shuffle</string>
     <string name="action_download_again">Download again (replace)</string>
 
     <!-- Errors (PLAN §7.16) -->
@@ -51,7 +52,6 @@
     <string name="tier_small">Small</string>
     <string name="tier_highest">Highest (larger)</string>
     <string name="download_queued_toast">Added to downloads</string>
-    <string name="no_player_found">No app can play this file</string>
 
     <!-- Library side panel (PLAN §7.12) -->
     <string name="library_tab_downloads">Downloads</string>
@@ -72,6 +72,7 @@
     <string name="playlist_delete_body">The playlist is removed. Its tracks stay in Downloads.</string>
     <string name="playlist_remove_track">Remove from playlist</string>
     <string name="playlist_reorder">Drag to reorder</string>
+    <string name="playlist_nothing_playable">None of these files can be found.</string>
     <string name="track_add_to_playlist">Add to playlist</string>
     <string name="track_actions">More options</string>
     <string name="track_delete">Delete</string>
@@ -104,6 +105,7 @@
     <string name="notif_progress_speed">%1$d %% · %2$s · %3$s left</string>
     <string name="notif_done">Downloaded</string>
     <string name="notif_failed">Download failed</string>
+    <string name="notif_channel_playback">Now playing</string>
 
     <!-- Settings (PLAN §7.14) -->
     <string name="settings_title">Settings</string>

@@ -1,5 +1,6 @@
 package io.github.z0orb.akagi.feature.library
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,9 +13,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +34,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.z0orb.akagi.R
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -65,9 +70,40 @@ internal fun PlaylistDetailPage(
         if (detail.tracks.isEmpty()) {
             EmptyState(stringResource(R.string.playlist_empty))
         } else {
+            PlayButtons(onPlay = actions.onPlayPlaylist)
             ReorderableTracks(detail, actions, guard)
         }
     }
+}
+
+/** In their own row, so the playlist name keeps the header's width at Half. */
+@Composable
+private fun PlayButtons(onPlay: (shuffle: Boolean) -> Unit) {
+    val buttonPadding = PaddingValues(horizontal = 8.dp)
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+    ) {
+        FilledTonalButton(onClick = { onPlay(false) }, contentPadding = buttonPadding, modifier = Modifier.weight(1f)) {
+            Icon(painterResource(R.drawable.ic_play_arrow), contentDescription = null)
+            ButtonLabel(stringResource(R.string.action_play))
+        }
+        OutlinedButton(onClick = { onPlay(true) }, contentPadding = buttonPadding, modifier = Modifier.weight(1f)) {
+            Icon(painterResource(R.drawable.ic_shuffle), contentDescription = null)
+            ButtonLabel(stringResource(R.string.action_shuffle))
+        }
+    }
+}
+
+/** Shrinks rather than clipping when the panel is at Half width or the font scale is large. */
+@Composable
+private fun ButtonLabel(text: String) {
+    Text(
+        text,
+        maxLines = 1,
+        autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = 14.sp),
+        modifier = Modifier.padding(start = 6.dp),
+    )
 }
 
 @Composable
@@ -91,7 +127,7 @@ private fun ReorderableTracks(detail: PlaylistDetail, actions: LibraryActions, g
                     TrackRow(
                         track,
                         guard = guard,
-                        onClick = { actions.onPlayTrack(track) },
+                        onClick = { actions.onPlayPlaylistTrack(track) },
                         startPadding = 4.dp,
                         // On the left, so the title keeps its room at Half width.
                         leading = {

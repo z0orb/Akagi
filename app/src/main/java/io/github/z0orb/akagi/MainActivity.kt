@@ -10,9 +10,14 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.z0orb.akagi.core.designsystem.theme.AkagiTheme
 import io.github.z0orb.akagi.feature.main.MainScreen
+import io.github.z0orb.akagi.playback.PlayerConnection
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var playerConnection: PlayerConnection
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -26,5 +31,15 @@ class MainActivity : ComponentActivity() {
                 MainScreen()
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        playerConnection.connect()
+    }
+
+    override fun onStop() {
+        playerConnection.disconnect()
+        super.onStop()
     }
 }

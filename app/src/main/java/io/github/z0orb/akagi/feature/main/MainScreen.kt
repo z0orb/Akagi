@@ -2,13 +2,10 @@ package io.github.z0orb.akagi.feature.main
 
 import android.Manifest
 import android.app.Activity
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
-import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -42,7 +39,6 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.z0orb.akagi.R
-import io.github.z0orb.akagi.core.common.AudioCodec
 import io.github.z0orb.akagi.feature.browser.BrowserHost
 import io.github.z0orb.akagi.feature.browser.BrowserTopBar
 import io.github.z0orb.akagi.feature.browser.BrowserViewModel
@@ -114,16 +110,12 @@ fun MainScreen(
             onUpdateYtDlp = downloadViewModel::onUpdateYtDlp,
         )
     }
-    val libraryActions = remember(libraryViewModel, context) {
+    val libraryActions = remember(libraryViewModel) {
         LibraryActions(
             onSelectTab = libraryViewModel::onSelectTab,
-            onPlayTrack = { track ->
-                if (track.missing) {
-                    showToast(context, R.string.track_missing_toast)
-                } else {
-                    openFile(context, track.contentUri, track.codec)
-                }
-            },
+            onPlayTrack = libraryViewModel::onPlayTrack,
+            onPlayPlaylistTrack = libraryViewModel::onPlayPlaylistTrack,
+            onPlayPlaylist = libraryViewModel::onPlayPlaylist,
             onCancelTask = libraryViewModel::onCancelTask,
             onRetryTask = libraryViewModel::onRetryTask,
             onAddToPlaylist = libraryViewModel::onAddToPlaylistClick,
@@ -156,7 +148,6 @@ fun MainScreen(
         val event = downloadState.event ?: return@LaunchedEffect
         when (event) {
             is DownloadEvent.Toast -> showToast(context, event.message)
-            is DownloadEvent.OpenFile -> openFile(context, event.contentUri, event.codec)
         }
         downloadViewModel.onEventHandled(event.id)
     }
@@ -236,19 +227,6 @@ fun MainScreen(
 
 private fun showToast(context: Context, message: Int) {
     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-}
-
-/** Until Akagi's own player arrives (Phase 5), "Play" hands the file to whatever plays audio. */
-private fun openFile(context: Context, contentUri: String, codec: AudioCodec) {
-    val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(codec.extension) ?: "audio/*"
-    val view = Intent(Intent.ACTION_VIEW)
-        .setDataAndType(Uri.parse(contentUri), mimeType)
-        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    try {
-        context.startActivity(view)
-    } catch (_: ActivityNotFoundException) {
-        showToast(context, R.string.no_player_found)
-    }
 }
 
 private fun shareCrashReport(context: Context, report: String) {

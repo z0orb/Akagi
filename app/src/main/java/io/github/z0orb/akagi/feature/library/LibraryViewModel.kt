@@ -12,6 +12,9 @@ import io.github.z0orb.akagi.data.library.PlaylistName
 import io.github.z0orb.akagi.data.library.PlaylistRepository
 import io.github.z0orb.akagi.data.storage.AudioDeletion
 import io.github.z0orb.akagi.download.DownloadQueue
+import io.github.z0orb.akagi.playback.PlayQueue
+import io.github.z0orb.akagi.playback.PlayerConnection
+import io.github.z0orb.akagi.playback.QueueFactory
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +34,7 @@ class LibraryViewModel @Inject constructor(
     private val queue: DownloadQueue,
     private val library: LibraryRepository,
     private val playlists: PlaylistRepository,
+    private val player: PlayerConnection,
     private val savedState: SavedStateHandle,
 ) : ViewModel() {
 
@@ -64,6 +68,37 @@ class LibraryViewModel @Inject constructor(
 
     fun onSelectTab(tab: LibraryTab) {
         savedState[TAB_KEY] = tab
+    }
+
+    /** A Downloads row: the whole list becomes the queue (R15). */
+    fun onPlayTrack(track: TrackEntity) {
+        if (track.missing) {
+            emit { LibraryEvent.Toast(it, R.string.track_missing_toast) }
+            return
+        }
+        play(QueueFactory.fromDownloads(uiState.value.tracks, track.id))
+    }
+
+    /** A row in the open playlist: only that playlist is queued. */
+    fun onPlayPlaylistTrack(track: TrackEntity) {
+        val detail = uiState.value.openPlaylist ?: return
+        if (track.missing) {
+            emit { LibraryEvent.Toast(it, R.string.track_missing_toast) }
+            return
+        }
+        play(QueueFactory.fromPlaylist(detail.id, detail.tracks, track.id))
+    }
+
+    /** The open playlist's Play or Shuffle button. */
+    fun onPlayPlaylist(shuffle: Boolean) {
+        val detail = uiState.value.openPlaylist ?: return
+        val queue = QueueFactory.playAll(detail.id, detail.tracks, shuffle)
+        if (queue == null) emit { LibraryEvent.Toast(it, R.string.playlist_nothing_playable) } else play(queue)
+    }
+
+    private fun play(queue: PlayQueue?) {
+        queue ?: return
+        viewModelScope.launch { player.play(queue) }
     }
 
     fun onCancelTask(taskId: Long) {
@@ -172,7 +207,7 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 when (val result = library.delete(track)) {
-                    AudioDeletion.Deleted -> Unit
+                    AudioDeletion.Deleted -> player.remove(track.id)
 
                     is AudioDeletion.NeedsConsent -> {
                         awaitingConsent = track
@@ -188,7 +223,10 @@ class LibraryViewModel @Inject constructor(
     fun onDeleteConsentResult(granted: Boolean) {
         val track = awaitingConsent ?: return
         awaitingConsent = null
-        if (granted) viewModelScope.launch { library.forget(track) }
+        if (granted) {
+            player.remove(track.id)
+            viewModelScope.launch { library.forget(track) }
+        }
     }
 
     /** Files can vanish while Akagi is in the background (another app, a file manager). */

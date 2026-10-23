@@ -11,6 +11,8 @@ import io.github.z0orb.akagi.data.library.LibraryRepository
 import io.github.z0orb.akagi.data.prefs.SettingsRepository
 import io.github.z0orb.akagi.download.DownloadQueue
 import io.github.z0orb.akagi.download.DownloadRequest
+import io.github.z0orb.akagi.playback.PlayerConnection
+import io.github.z0orb.akagi.playback.QueueFactory
 import io.github.z0orb.akagi.ytdlp.FormatChoices
 import io.github.z0orb.akagi.ytdlp.FormatOption
 import io.github.z0orb.akagi.ytdlp.FormatRecommender
@@ -45,6 +47,7 @@ class DownloadViewModel @Inject constructor(
     private val library: LibraryRepository,
     private val settings: SettingsRepository,
     private val updater: YtDlpUpdater,
+    private val player: PlayerConnection,
 ) : ViewModel() {
 
     private val currentVideo = MutableStateFlow<String?>(null)
@@ -140,8 +143,12 @@ class DownloadViewModel @Inject constructor(
 
     fun onPlayClick() {
         val content = uiState.value.sheet?.content as? SheetContent.InLibrary ?: return
-        emit { DownloadEvent.OpenFile(it, content.contentUri, content.codec) }
         sheet.value = null
+        // Same as tapping the track in Downloads: the whole list is queued.
+        viewModelScope.launch {
+            val queue = QueueFactory.fromDownloads(library.observeTracks().first(), content.trackId)
+            if (queue == null) emit { DownloadEvent.Toast(it, R.string.track_missing_toast) } else player.play(queue)
+        }
     }
 
     fun onCancelTask(taskId: Long) {

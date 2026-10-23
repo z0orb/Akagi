@@ -94,6 +94,8 @@ private fun TabPager(
 class LibraryActions(
     val onSelectTab: (LibraryTab) -> Unit,
     val onPlayTrack: (TrackEntity) -> Unit,
+    val onPlayPlaylistTrack: (TrackEntity) -> Unit,
+    val onPlayPlaylist: (shuffle: Boolean) -> Unit,
     val onCancelTask: (Long) -> Unit,
     val onRetryTask: (Long) -> Unit,
     val onAddToPlaylist: (TrackEntity) -> Unit,

@@ -49,7 +49,7 @@ internal fun sheetContentOf(model: SheetModel, status: VideoStatus?): SheetConte
         task != null && !model.choosing ->
             SheetContent.Active(task.id, task.state, status.progress?.fraction, task.error)
 
-        track != null && !model.choosing -> SheetContent.InLibrary(track.codec, track.sizeBytes, track.contentUri)
+        track != null && !model.choosing -> SheetContent.InLibrary(track.codec, track.sizeBytes, track.id)
 
         else -> when (val load = model.load) {
             Load.Loading -> SheetContent.Loading

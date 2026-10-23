@@ -45,7 +45,7 @@ class DownloadStatusTest {
         assertEquals(SheetContent.Active(3, DownloadState.RUNNING, 0.5f, null), active)
 
         assertEquals(
-            SheetContent.InLibrary(AudioCodec.OPUS, 3_400_000, "content://media/1"),
+            SheetContent.InLibrary(AudioCodec.OPUS, 3_400_000, trackId = 7),
             sheetContentOf(ready, VideoStatus(track, null, null)),
         )
 
