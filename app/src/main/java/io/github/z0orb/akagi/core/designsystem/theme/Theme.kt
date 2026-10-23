@@ -1,5 +1,6 @@
 package io.github.z0orb.akagi.core.designsystem.theme
 
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -58,3 +59,6 @@ fun AkagiTheme(content: @Composable () -> Unit) {
         CompositionLocalProvider(LocalContentColor provides akagiColorScheme.onBackground, content = content)
     }
 }
+
+/** Waveform bars that haven't played yet (PLAN §7.13); played bars use `primary`. */
+val ColorScheme.waveformUnplayed: Color get() = AkagiPalette.waveformUnplayed

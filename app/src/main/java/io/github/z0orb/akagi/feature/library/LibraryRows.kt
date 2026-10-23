@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.github.z0orb.akagi.R
 import io.github.z0orb.akagi.core.common.SizeFormatter
+import io.github.z0orb.akagi.core.designsystem.TrackThumbnail
 import io.github.z0orb.akagi.core.designsystem.codecLabel
 import io.github.z0orb.akagi.core.designsystem.describe
 import io.github.z0orb.akagi.data.db.DownloadState
@@ -160,7 +161,10 @@ internal fun TrackRow(
             .padding(start = startPadding, end = 4.dp, top = 8.dp, bottom = 8.dp),
     ) {
         leading()
-        Thumbnail(track.thumbnailPath, modifier = if (track.missing) Modifier.alpha(MISSING_ALPHA) else Modifier)
+        TrackThumbnail(
+            track.thumbnailPath,
+            modifier = Modifier.size(48.dp).then(if (track.missing) Modifier.alpha(MISSING_ALPHA) else Modifier),
+        )
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -193,32 +197,6 @@ internal fun TrackRow(
             }
         }
         trailing()
-    }
-}
-
-@Composable
-internal fun Thumbnail(path: String?, modifier: Modifier = Modifier) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier
-            .size(48.dp)
-            .clip(MaterialTheme.shapes.small)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-    ) {
-        if (path == null) {
-            Icon(
-                painterResource(R.drawable.ic_library),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            AsyncImage(
-                model = File(path),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
     }
 }
 
@@ -263,4 +241,5 @@ internal fun RowMenu(entries: List<MenuEntry>, modifier: Modifier = Modifier) {
         }
     }
 }
+
 private const val MISSING_ALPHA = 0.4f

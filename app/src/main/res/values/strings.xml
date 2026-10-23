@@ -107,6 +107,18 @@
     <string name="notif_failed">Download failed</string>
     <string name="notif_channel_playback">Now playing</string>
 
+    <!-- Player (PLAN §7.13) -->
+    <string name="player_seek">Playback position</string>
+    <string name="player_expand">Expand player</string>
+    <string name="player_collapse">Collapse player</string>
+    <string name="player_playing_from">Playing from: %1$s</string>
+    <string name="player_pause">Pause</string>
+    <string name="player_next">Next</string>
+    <string name="player_previous">Previous</string>
+    <string name="player_repeat_off">Repeat off</string>
+    <string name="player_repeat_all">Repeat all</string>
+    <string name="player_repeat_one">Repeat one</string>
+
     <!-- Settings (PLAN §7.14) -->
     <string name="settings_title">Settings</string>
     <string name="settings_section_ytdlp">yt-dlp</string>

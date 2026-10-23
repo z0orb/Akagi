@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.z0orb.akagi.R
+import io.github.z0orb.akagi.core.designsystem.TrackThumbnail
 import io.github.z0orb.akagi.data.db.PlaylistSummary
 
 @Composable
@@ -81,7 +82,7 @@ private fun PlaylistRow(playlist: PlaylistSummary, actions: LibraryActions, guar
             .deliberateClickable(guard, interaction) { actions.onOpenPlaylist(playlist.id) }
             .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
     ) {
-        Thumbnail(playlist.coverPath)
+        TrackThumbnail(playlist.coverPath, modifier = Modifier.size(48.dp))
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(

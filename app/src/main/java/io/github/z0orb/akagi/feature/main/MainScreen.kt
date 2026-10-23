@@ -55,6 +55,9 @@ import io.github.z0orb.akagi.feature.library.LibraryPanel
 import io.github.z0orb.akagi.feature.library.LibraryViewModel
 import io.github.z0orb.akagi.feature.library.SidePanel
 import io.github.z0orb.akagi.feature.library.rememberSidePanelState
+import io.github.z0orb.akagi.feature.player.PlayerActions
+import io.github.z0orb.akagi.feature.player.PlayerBar
+import io.github.z0orb.akagi.feature.player.PlayerViewModel
 import io.github.z0orb.akagi.feature.settings.SettingsScreen
 import kotlinx.coroutines.launch
 
@@ -62,8 +65,7 @@ import kotlinx.coroutines.launch
 private enum class Overlay { NONE, SETTINGS }
 
 /**
- * App root (PLAN §5): top bar, the WebView area with its overlays, and the fullscreen video layer.
- * The player (Phase 5) slot is marked below.
+ * App root (PLAN §5): top bar, the WebView area with its overlays, the player, and the fullscreen video layer.
  */
 @Composable
 fun MainScreen(
@@ -72,11 +74,25 @@ fun MainScreen(
     downloadViewModel: DownloadViewModel = viewModel(),
     mainViewModel: MainViewModel = viewModel(),
     libraryViewModel: LibraryViewModel = viewModel(),
+    playerViewModel: PlayerViewModel = viewModel(),
 ) {
     val browserState by browserViewModel.uiState.collectAsStateWithLifecycle()
     val downloadState by downloadViewModel.uiState.collectAsStateWithLifecycle()
     val mainState by mainViewModel.uiState.collectAsStateWithLifecycle()
     val libraryState by libraryViewModel.uiState.collectAsStateWithLifecycle()
+    val playerState by playerViewModel.uiState.collectAsStateWithLifecycle()
+    var playerExpanded by rememberSaveable { mutableStateOf(false) }
+    val playerActions = remember(playerViewModel) {
+        PlayerActions(
+            onPlayPause = playerViewModel::onPlayPause,
+            onNext = playerViewModel::onNext,
+            onPrevious = playerViewModel::onPrevious,
+            onSeek = playerViewModel::onSeek,
+            onToggleShuffle = playerViewModel::onToggleShuffle,
+            onCycleRepeat = playerViewModel::onCycleRepeat,
+            positionMs = playerViewModel::positionMs,
+        )
+    }
     val controller = rememberBrowserController()
     val sidePanel = rememberSidePanelState()
     val scope = rememberCoroutineScope()
@@ -164,10 +180,11 @@ fun MainScreen(
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { libraryViewModel.onResume() }
 
-    // Back order (PLAN §7.1): fullscreen → overlay → [player: Phase 5] → sidebar → WebView history → exit.
+    // Back order (PLAN §7.1): fullscreen → overlay → expanded player → sidebar → WebView history → exit.
     // The handler registered last wins, so the most specific one comes last.
     BackHandler(enabled = browserState.canGoBack) { controller.goBack() }
     BackHandler(enabled = sidePanel.isOpen) { scope.launch { sidePanel.close() } }
+    BackHandler(enabled = playerExpanded && playerState.track != null) { playerExpanded = false }
     BackHandler(enabled = overlay != Overlay.NONE) { overlay = Overlay.NONE }
     BackHandler(enabled = fullscreenView != null) { controller.exitFullscreen() }
 
@@ -202,7 +219,15 @@ fun MainScreen(
                     LibraryPanel(state = libraryState, actions = libraryActions)
                 }
             }
-            // Mini player: Phase 5.
+            playerState.track?.let { track ->
+                PlayerBar(
+                    state = playerState,
+                    track = track,
+                    actions = playerActions,
+                    expanded = playerExpanded,
+                    onExpandedChange = { playerExpanded = it },
+                )
+            }
         }
         val overlayModifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
         when (overlay) {

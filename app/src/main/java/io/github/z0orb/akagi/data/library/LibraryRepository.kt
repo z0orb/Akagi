@@ -21,6 +21,9 @@ class LibraryRepository @Inject constructor(
 
     suspend fun playlistCount(trackId: Long): Int = trackDao.playlistCount(trackId)
 
+    /** 256 peak bytes, or null when the waveform couldn't be generated (PLAN §7.7). */
+    suspend fun waveform(trackId: Long): ByteArray? = trackDao.waveform(trackId)?.peaks
+
     /**
      * Deletes the file, then the row (which takes the track out of every playlist) and the thumbnail.
      * When the user must confirm the file deletion first, nothing is removed until [forget] is called.
