@@ -153,6 +153,8 @@ fun MainScreen(
         )
     }
 
+    // Akagi starting playback pauses YouTube (R11).
+    LaunchedEffect(playerState.isPlaying) { if (playerState.isPlaying) controller.pauseMedia() }
     LaunchedEffect(browserState.pendingLoad) {
         browserState.pendingLoad?.let { load ->
             controller.load(load.url)
@@ -200,6 +202,8 @@ fun MainScreen(
                     controller = controller,
                     startUrl = browserState.startUrl,
                     onPageChange = browserViewModel::onPageChange,
+                    onWebAudioStart = playerViewModel::onWebMediaStarted,
+                    onWebAudioUnplug = playerViewModel::onWebAudioUnplugged,
                     modifier = Modifier.fillMaxSize(),
                 )
                 DownloadFab(

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.z0orb.akagi.data.library.LibraryRepository
 import io.github.z0orb.akagi.data.library.PlaylistRepository
+import io.github.z0orb.akagi.playback.HeadphoneDisconnectHandler
 import io.github.z0orb.akagi.playback.PlayerConnection
 import io.github.z0orb.akagi.playback.QueueSource
 import javax.inject.Inject
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.stateIn
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     private val player: PlayerConnection,
+    private val headphones: HeadphoneDisconnectHandler,
     library: LibraryRepository,
     playlists: PlaylistRepository,
 ) : ViewModel() {
@@ -62,6 +64,12 @@ class PlayerViewModel @Inject constructor(
     fun onToggleShuffle() = player.toggleShuffle()
 
     fun onCycleRepeat() = player.cycleRepeat()
+
+    /** YouTube started audible playback: it takes over, as another app would (R11). */
+    fun onWebMediaStarted() = player.pause()
+
+    /** Headphones dropped while YouTube was playing; the page is already paused. */
+    fun onWebAudioUnplugged() = headphones.muteSpeakerOnceRouteSettles()
 
     /** Polled by the seekbar's ticker while it is visible and playing. */
     fun positionMs(): Long = player.positionMs()

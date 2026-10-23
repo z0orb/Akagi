@@ -29,8 +29,12 @@ class BrowserController {
     /** Where a replacement WebView should resume. */
     internal var lastUrl: String? = null
 
+    /** Whether the page is playing audible media, as last reported by [WebMediaBridge]. */
+    internal var webMediaAudible = false
+
     internal fun onRendererGone() {
         clearFullscreen()
+        webMediaAudible = false
         webViewGeneration++
     }
 
@@ -40,6 +44,11 @@ class BrowserController {
 
     fun goBack() {
         webView?.goBack()
+    }
+
+    /** Pauses every video and audio element on the page; nothing in Akagi ever resumes them (R11). */
+    fun pauseMedia() {
+        webView?.let(WebMediaBridge::pauseMedia)
     }
 
     fun exitFullscreen() {

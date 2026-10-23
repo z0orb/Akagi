@@ -1,6 +1,7 @@
 package io.github.z0orb.akagi.playback
 
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Intent
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
@@ -14,17 +15,24 @@ import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommands
+import dagger.hilt.android.AndroidEntryPoint
 import io.github.z0orb.akagi.MainActivity
 import io.github.z0orb.akagi.R
+import javax.inject.Inject
 
 /**
  * Owns the player, so music keeps going with the screen off and after the app is swiped away
  * (PLAN §7.8). Media3 runs it in the foreground while playing and lets it stop once paused.
  */
 @OptIn(UnstableApi::class)
+@AndroidEntryPoint
 class PlaybackService : MediaSessionService() {
 
+    @Inject
+    lateinit var headphones: HeadphoneDisconnectHandler
+
     private var session: MediaSession? = null
+    private var noisyReceiver: BroadcastReceiver? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -34,7 +42,8 @@ class PlaybackService : MediaSessionService() {
                 // Another app taking focus pauses Akagi; a transient loss ducks or pauses and resumes (R11).
                 true,
             )
-            .setHandleAudioBecomingNoisy(true)
+            // Unplugging is handled below: ExoPlayer would pause first, hiding whether Akagi was playing.
+            .setHandleAudioBecomingNoisy(false)
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .build()
         player.setShuffleOrder(StartFirstShuffleOrder.startingAt(0))
@@ -49,11 +58,19 @@ class PlaybackService : MediaSessionService() {
             .setSessionActivity(openAppIntent())
             .setCallback(MinimalSystemControls)
             .build()
+        noisyReceiver = headphones.register(this) {
+            if (player.playWhenReady) {
+                player.pause()
+                headphones.muteSpeakerOnceRouteSettles()
+            }
+        }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
 
     override fun onDestroy() {
+        noisyReceiver?.let(::unregisterReceiver)
+        noisyReceiver = null
         session?.run {
             player.release()
             release()

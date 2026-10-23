@@ -2,9 +2,12 @@ package io.github.z0orb.akagi.feature.browser
 
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
+import android.media.AudioManager
 import android.net.Uri
 import android.view.View
 import android.webkit.CookieManager
@@ -24,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import androidx.lifecycle.compose.LifecycleStartEffect
 
@@ -36,26 +40,37 @@ fun BrowserHost(
     controller: BrowserController,
     startUrl: String,
     onPageChange: (url: String, canGoBack: Boolean) -> Unit,
+    onWebAudioStart: () -> Unit,
+    onWebAudioUnplug: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val backgroundColor = MaterialTheme.colorScheme.background.toArgb()
     val currentOnPageChange by rememberUpdatedState(onPageChange)
+    val currentOnWebAudioStart by rememberUpdatedState(onWebAudioStart)
     // A dead WebView can't be reused: a new generation builds a fresh one and the old one is destroyed.
     key(controller.webViewGeneration) {
         val webView = remember {
             createWebView(context, backgroundColor, controller) { url, canGoBack ->
                 controller.lastUrl = url
                 currentOnPageChange(url, canGoBack)
-            }.apply { loadUrl(controller.lastUrl ?: startUrl) }
+            }.apply {
+                WebMediaBridge.install(this) { audible ->
+                    if (audible && !controller.webMediaAudible) currentOnWebAudioStart()
+                    controller.webMediaAudible = audible
+                }
+                loadUrl(controller.lastUrl ?: startUrl)
+            }
         }
-        WebViewLifecycle(webView, controller)
+        WebViewLifecycle(webView, controller, onWebAudioUnplug)
         AndroidView(factory = { webView }, modifier = modifier)
     }
 }
 
 @Composable
-private fun WebViewLifecycle(webView: WebView, controller: BrowserController) {
+private fun WebViewLifecycle(webView: WebView, controller: BrowserController, onWebAudioUnplug: () -> Unit) {
+    val context = LocalContext.current
+    val currentOnUnplugged by rememberUpdatedState(onWebAudioUnplug)
     DisposableEffect(webView) {
         controller.webView = webView
         onDispose {
@@ -63,11 +78,18 @@ private fun WebViewLifecycle(webView: WebView, controller: BrowserController) {
             webView.destroy()
         }
     }
-    // Stop page timers and media work while Akagi is in the background (PLAN §7.17).
+    // Stop page timers and media work while Akagi is in the background (PLAN §7.17). Only Akagi plays
+    // in the background (D-019), so the page's media is paused too: onPause() alone doesn't stop it.
     LifecycleStartEffect(webView) {
         webView.onResume()
         webView.resumeTimers()
+        val unplugged = registerNoisyReceiver(context) {
+            controller.pauseMedia()
+            if (controller.webMediaAudible) currentOnUnplugged()
+        }
         onStopOrDispose {
+            context.unregisterReceiver(unplugged)
+            controller.pauseMedia()
             webView.onPause()
             webView.pauseTimers()
         }
@@ -156,4 +178,18 @@ private class FullscreenChromeClient(private val controller: BrowserController) 
 
     // The default poster is a grey play glyph that flashes before every video.
     override fun getDefaultVideoPoster(): Bitmap = createBitmap(1, 1)
+}
+
+/** Headphones are about to drop and the output falls back to the speaker. */
+private fun registerNoisyReceiver(context: Context, onNoisy: () -> Unit): BroadcastReceiver {
+    val receiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = onNoisy()
+    }
+    ContextCompat.registerReceiver(
+        context,
+        receiver,
+        IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+        ContextCompat.RECEIVER_NOT_EXPORTED,
+    )
+    return receiver
 }
