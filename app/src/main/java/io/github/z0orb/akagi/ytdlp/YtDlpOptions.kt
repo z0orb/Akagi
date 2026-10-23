@@ -24,6 +24,8 @@ object YtDlpOptions {
         "3",
     )
 
+    fun cookies(path: String): List<String> = listOf("--cookies", path)
+
     fun info(): List<String> = listOf("-J")
 
     /** Downloads from a saved `-J` output instead of the watch page. */

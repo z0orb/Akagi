@@ -5,6 +5,7 @@ import android.content.Intent
 import android.util.Log
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.z0orb.akagi.account.CookieAuth
 import io.github.z0orb.akagi.core.di.ApplicationScope
 import io.github.z0orb.akagi.data.db.DownloadState
 import io.github.z0orb.akagi.ytdlp.YtDlpUpdater
@@ -23,6 +24,7 @@ class DownloadCoordinator @Inject constructor(
     private val pipeline: DownloadPipeline,
     private val notifier: DownloadNotifier,
     private val updater: YtDlpUpdater,
+    private val auth: CookieAuth,
     @ApplicationScope private val scope: CoroutineScope,
 ) {
     private var started = false
@@ -32,6 +34,7 @@ class DownloadCoordinator @Inject constructor(
         started = true
         scope.launch {
             pipeline.cleanUpAll()
+            auth.cleanUp()
             queue.restore()
             updater.autoUpdateIfDue()
         }

@@ -74,8 +74,8 @@ class YoutubeDlAndroidEngine @Inject constructor(
             ?.forEach(File::delete)
     }
 
-    override suspend fun fetchInfo(videoId: String): VideoInfo = lock.read {
-        val request = request(videoId).apply { addCommands(YtDlpOptions.info()) }
+    override suspend fun fetchInfo(videoId: String, cookieFile: File?): VideoInfo = lock.read {
+        val request = request(videoId, cookieFile).apply { addCommands(YtDlpOptions.info()) }
         val response = run("info-${infoIds.incrementAndGet()}", request, callback = null)
         val info = try {
             AudioFormatMapper.parse(response.out)
@@ -94,6 +94,7 @@ class YoutubeDlAndroidEngine @Inject constructor(
         codec: AudioCodec,
         bitrateKbps: Int,
         outputDir: File,
+        cookieFile: File?,
         onProgress: (DownloadProgress) -> Unit,
     ): File = lock.read {
         val args = YtDlpOptions.download(formatId, codec, bitrateKbps, File(outputDir, "%(id)s.%(ext)s").absolutePath)
@@ -112,6 +113,7 @@ class YoutubeDlAndroidEngine @Inject constructor(
         val reused = savedInfo != null && try {
             val request = YoutubeDLRequest(emptyList<String>()).apply {
                 addCommands(YtDlpOptions.base(cacheDir, pluginDir.absolutePath))
+                cookieFile?.let { addCommands(YtDlpOptions.cookies(it.absolutePath)) }
                 addCommands(YtDlpOptions.loadInfo(savedInfo.absolutePath) + args)
             }
             run(processId, request, callback)
@@ -123,7 +125,7 @@ class YoutubeDlAndroidEngine @Inject constructor(
             outputDir.listFiles()?.forEach(File::delete)
             false
         }
-        if (!reused) run(processId, request(videoId).apply { addCommands(args) }, callback)
+        if (!reused) run(processId, request(videoId, cookieFile).apply { addCommands(args) }, callback)
         outputDir.listFiles()?.firstOrNull { it.extension.equals(codec.extension, ignoreCase = true) }
             ?: throw AppException(AppError.Unknown("yt-dlp finished without a .${codec.extension} file"))
     }
@@ -166,8 +168,9 @@ class YoutubeDlAndroidEngine @Inject constructor(
         }
     }
 
-    private fun request(videoId: String) = YoutubeDLRequest(YtDlpOptions.watchUrl(videoId)).apply {
+    private fun request(videoId: String, cookieFile: File?) = YoutubeDLRequest(YtDlpOptions.watchUrl(videoId)).apply {
         addCommands(YtDlpOptions.base(cacheDir, pluginDir.absolutePath))
+        cookieFile?.let { addCommands(YtDlpOptions.cookies(it.absolutePath)) }
     }
 
     private suspend fun run(

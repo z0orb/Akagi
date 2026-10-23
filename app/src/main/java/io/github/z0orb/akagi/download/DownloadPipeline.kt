@@ -2,6 +2,7 @@ package io.github.z0orb.akagi.download
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.z0orb.akagi.account.CookieAuth
 import io.github.z0orb.akagi.core.common.Clock
 import io.github.z0orb.akagi.core.common.DispatcherProvider
 import io.github.z0orb.akagi.data.db.TrackDao
@@ -21,6 +22,7 @@ import kotlinx.coroutines.withContext
 class DownloadPipeline @Inject constructor(
     @ApplicationContext context: Context,
     private val engine: YtDlpEngine,
+    private val auth: CookieAuth,
     private val waveforms: WaveformGenerator,
     private val audioStore: AudioStore,
     private val thumbnails: ThumbnailStore,
@@ -44,15 +46,18 @@ class DownloadPipeline @Inject constructor(
         }
         // The thumbnail downloads alongside the audio; it is small and never fails the task.
         val thumbnail = async { thumbnails.fetch(request.videoId) }
-        val file = engine.download(
-            processId = task.id.toString(),
-            videoId = request.videoId,
-            formatId = request.formatId,
-            codec = request.codec,
-            bitrateKbps = request.bitrateKbps,
-            outputDir = directory,
-            onProgress = onProgress,
-        )
+        val file = auth.run(request.videoId) { cookieFile ->
+            engine.download(
+                processId = task.id.toString(),
+                videoId = request.videoId,
+                formatId = request.formatId,
+                codec = request.codec,
+                bitrateKbps = request.bitrateKbps,
+                outputDir = directory,
+                cookieFile = cookieFile,
+                onProgress = onProgress,
+            )
+        }
         onPostProcessing()
         val analysis = waveforms.analyse(file)
         val existing = trackDao.findByVideoId(request.videoId)

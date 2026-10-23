@@ -9,7 +9,8 @@ import java.io.File
  * [io.github.z0orb.akagi.core.common.AppException].
  */
 interface YtDlpEngine {
-    suspend fun fetchInfo(videoId: String): VideoInfo
+    /** [cookieFile] is a Netscape cookies.txt with the YouTube sign-in, or null to run anonymously (PLAN §7.15). */
+    suspend fun fetchInfo(videoId: String, cookieFile: File?): VideoInfo
 
     /**
      * Downloads [formatId] as [codec] into [outputDir] and returns the finished file. Cancelling the
@@ -22,6 +23,7 @@ interface YtDlpEngine {
         codec: AudioCodec,
         bitrateKbps: Int,
         outputDir: File,
+        cookieFile: File?,
         onProgress: (DownloadProgress) -> Unit,
     ): File
 

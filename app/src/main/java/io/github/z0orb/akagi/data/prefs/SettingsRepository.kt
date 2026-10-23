@@ -18,6 +18,9 @@ import kotlinx.coroutines.flow.map
 
 enum class AutoUpdate { OFF, WIFI_ONLY, ANY_NETWORK }
 
+/** When yt-dlp may use the YouTube sign-in (PLAN §7.15, D-020). */
+enum class CookiePolicy { ONLY_WHEN_NEEDED, ALWAYS, NEVER }
+
 data class Settings(
     /** The codec and tier picked last in the format sheet; the tier is a `FormatTier` name, or null for a plain option. */
     val lastCodec: AudioCodec? = null,
@@ -26,6 +29,7 @@ data class Settings(
     val nightlyYtDlp: Boolean = false,
     val autoUpdate: AutoUpdate = AutoUpdate.WIFI_ONLY,
     val lastUpdateCheckMillis: Long = 0,
+    val cookiePolicy: CookiePolicy = CookiePolicy.ONLY_WHEN_NEEDED,
 )
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -43,6 +47,8 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
             autoUpdate = prefs[AUTO_UPDATE]?.let { name -> AutoUpdate.entries.firstOrNull { it.name == name } }
                 ?: AutoUpdate.WIFI_ONLY,
             lastUpdateCheckMillis = prefs[LAST_UPDATE_CHECK] ?: 0,
+            cookiePolicy = prefs[COOKIE_POLICY]?.let { name -> CookiePolicy.entries.firstOrNull { it.name == name } }
+                ?: CookiePolicy.ONLY_WHEN_NEEDED,
         )
     }
 
@@ -61,6 +67,8 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
 
     suspend fun setLastUpdateCheck(millis: Long) = store.edit { it[LAST_UPDATE_CHECK] = millis }
 
+    suspend fun setCookiePolicy(policy: CookiePolicy) = store.edit { it[COOKIE_POLICY] = policy.name }
+
     private companion object {
         val LAST_CODEC = stringPreferencesKey("last_codec")
         val LAST_TIER = stringPreferencesKey("last_tier")
@@ -68,5 +76,6 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
         val NIGHTLY = booleanPreferencesKey("nightly_ytdlp")
         val AUTO_UPDATE = stringPreferencesKey("auto_update")
         val LAST_UPDATE_CHECK = longPreferencesKey("last_update_check")
+        val COOKIE_POLICY = stringPreferencesKey("cookie_policy")
     }
 }
