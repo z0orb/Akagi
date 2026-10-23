@@ -74,6 +74,15 @@
     <string name="playlist_reorder">Drag to reorder</string>
     <string name="track_add_to_playlist">Add to playlist</string>
     <string name="track_actions">More options</string>
+    <string name="track_delete">Delete</string>
+    <string name="track_delete_title">Delete “%1$s”?</string>
+    <string name="track_delete_body">The file is removed from Music/Akagi.</string>
+    <plurals name="track_delete_playlists">
+        <item quantity="one">It is also removed from %1$d playlist.</item>
+        <item quantity="other">It is also removed from %1$d playlists.</item>
+    </plurals>
+    <string name="track_missing">File missing</string>
+    <string name="track_missing_toast">This file was deleted or moved outside Akagi.</string>
     <string name="action_create">Create</string>
     <string name="action_save">Save</string>
     <string name="action_done">Done</string>

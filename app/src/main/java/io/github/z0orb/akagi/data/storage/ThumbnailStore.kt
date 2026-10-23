@@ -33,8 +33,8 @@ class ThumbnailStore @Inject constructor(
         }.getOrNull()
     }
 
-    fun delete(path: String) {
-        File(path).delete()
+    suspend fun delete(path: String) {
+        withContext(dispatchers.io) { File(path).delete() }
     }
 
     private fun download(url: String): Bitmap? {

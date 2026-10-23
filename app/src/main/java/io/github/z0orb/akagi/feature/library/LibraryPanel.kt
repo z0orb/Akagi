@@ -59,6 +59,8 @@ class LibraryActions(
     val onCancelTask: (Long) -> Unit,
     val onRetryTask: (Long) -> Unit,
     val onAddToPlaylist: (TrackEntity) -> Unit,
+    val onDeleteTrack: (TrackEntity) -> Unit,
+    val onConfirmDeleteTrack: () -> Unit,
     val onOpenPlaylist: (Long) -> Unit,
     val onClosePlaylist: () -> Unit,
     val onNewPlaylist: () -> Unit,
@@ -100,7 +102,10 @@ private fun DownloadsTab(state: LibraryUiState, actions: LibraryActions) {
                 onClick = { actions.onPlayTrack(track) },
                 trailing = {
                     RowMenu(
-                        listOf(MenuEntry(R.string.track_add_to_playlist) { actions.onAddToPlaylist(track) }),
+                        listOf(
+                            MenuEntry(R.string.track_add_to_playlist) { actions.onAddToPlaylist(track) },
+                            MenuEntry(R.string.track_delete) { actions.onDeleteTrack(track) },
+                        ),
                     )
                 },
             )

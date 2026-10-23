@@ -4,10 +4,13 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.z0orb.akagi.R
+import io.github.z0orb.akagi.core.common.AppException
 import io.github.z0orb.akagi.data.db.TrackEntity
 import io.github.z0orb.akagi.data.library.LibraryRepository
 import io.github.z0orb.akagi.data.library.PlaylistName
 import io.github.z0orb.akagi.data.library.PlaylistRepository
+import io.github.z0orb.akagi.data.storage.AudioDeletion
 import io.github.z0orb.akagi.download.DownloadQueue
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -26,12 +29,17 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val queue: DownloadQueue,
-    library: LibraryRepository,
+    private val library: LibraryRepository,
     private val playlists: PlaylistRepository,
     private val savedState: SavedStateHandle,
 ) : ViewModel() {
 
     private val dialog = MutableStateFlow<LibraryDialog?>(null)
+    private val event = MutableStateFlow<LibraryEvent?>(null)
+    private var nextEventId = 0L
+
+    // The track whose file deletion waits for the system dialog; the row goes once the user agrees.
+    private var awaitingConsent: TrackEntity? = null
 
     private val openPlaylist = savedState.getStateFlow<Long?>(OPEN_PLAYLIST_KEY, null).flatMapLatest { id ->
         if (id == null) {
@@ -49,9 +57,9 @@ class LibraryViewModel @Inject constructor(
         openPlaylist,
         // Saved here rather than in the panel, whose content leaves composition while it is closed.
         savedState.getStateFlow(TAB_KEY, LibraryTab.DOWNLOADS),
-        dialog,
-    ) { (tasks, progress, tracks), summaries, detail, tab, dialog ->
-        LibraryUiState(tasks, progress, tracks, summaries, detail, tab, dialog)
+        combine(dialog, event, ::Pair),
+    ) { (tasks, progress, tracks), summaries, detail, tab, (dialog, event) ->
+        LibraryUiState(tasks, progress, tracks, summaries, detail, tab, dialog, event)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), LibraryUiState())
 
     fun onSelectTab(tab: LibraryTab) {
@@ -152,6 +160,46 @@ class LibraryViewModel @Inject constructor(
 
     fun onReorder(playlistId: Long, trackIds: List<Long>) {
         viewModelScope.launch { playlists.reorder(playlistId, trackIds) }
+    }
+
+    fun onDeleteTrackClick(track: TrackEntity) {
+        viewModelScope.launch { dialog.value = LibraryDialog.DeleteTrack(track, library.playlistCount(track.id)) }
+    }
+
+    fun onConfirmDeleteTrack() {
+        val track = (dialog.value as? LibraryDialog.DeleteTrack)?.track ?: return
+        dialog.value = null
+        viewModelScope.launch {
+            try {
+                when (val result = library.delete(track)) {
+                    AudioDeletion.Deleted -> Unit
+
+                    is AudioDeletion.NeedsConsent -> {
+                        awaitingConsent = track
+                        emit { LibraryEvent.ConfirmFileDeletion(it, result.request) }
+                    }
+                }
+            } catch (_: AppException) {
+                emit { LibraryEvent.Toast(it, R.string.error_storage) }
+            }
+        }
+    }
+
+    fun onDeleteConsentResult(granted: Boolean) {
+        val track = awaitingConsent ?: return
+        awaitingConsent = null
+        if (granted) viewModelScope.launch { library.forget(track) }
+    }
+
+    /** Files can vanish while Akagi is in the background (another app, a file manager). */
+    fun onResume() {
+        viewModelScope.launch { library.reconcileMissingFiles() }
+    }
+
+    fun onEventHandled(id: Long) = event.update { if (it?.id == id) null else it }
+
+    private fun emit(create: (Long) -> LibraryEvent) {
+        event.value = create(++nextEventId)
     }
 
     private fun PlaylistName.toError(): NameError? = when (this) {

@@ -1,9 +1,11 @@
 package io.github.z0orb.akagi.data.storage
 
+import android.app.RecoverableSecurityException
 import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -38,8 +40,33 @@ class MediaStoreAudioStore @Inject constructor(
         SavedAudio(uri.toString(), source.length())
     }
 
-    override suspend fun delete(contentUri: String) = withContext(dispatchers.io) {
-        deleteQuietly(Uri.parse(contentUri))
+    override suspend fun delete(contentUri: String): AudioDeletion = withContext(dispatchers.io) {
+        val uri = Uri.parse(contentUri)
+        try {
+            resolver.delete(uri, null, null)
+            AudioDeletion.Deleted
+        } catch (e: SecurityException) {
+            // Files Akagi didn't create (a reinstall drops ownership) need the user's OK through a system dialog.
+            // HyperOS also throws here for a row that no longer exists, and a delete request for it would fail.
+            when {
+                !exists(uri) -> AudioDeletion.Deleted
+
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.R ->
+                    AudioDeletion.NeedsConsent(MediaStore.createDeleteRequest(resolver, listOf(uri)).intentSender)
+
+                e is RecoverableSecurityException -> AudioDeletion.NeedsConsent(e.userAction.actionIntent.intentSender)
+
+                else -> throw AppException(AppError.Storage, e.message, e)
+            }
+        }
+    }
+
+    override suspend fun presentMediaIds(): Set<Long>? = withContext(dispatchers.io) {
+        runCatching {
+            resolver.query(collection, arrayOf(MediaStore.Audio.Media._ID), null, null, null)?.use { cursor ->
+                buildSet { while (cursor.moveToNext()) add(cursor.getLong(0)) }
+            }
+        }.getOrNull()
     }
 
     private fun insert(source: File, fileName: String, title: String, codec: AudioCodec): Uri {
@@ -76,6 +103,11 @@ class MediaStoreAudioStore @Inject constructor(
         val output = resolver.openOutputStream(uri, mode) ?: throw IOException("Can't open $uri")
         output.use { out -> source.inputStream().use { it.copyTo(out) } }
     }
+
+    // On a failed query, assume the file is there: asking the user beats silently dropping a real file.
+    private fun exists(uri: Uri): Boolean = runCatching {
+        resolver.query(uri, arrayOf(MediaStore.Audio.Media._ID), null, null, null)?.use { it.count > 0 }
+    }.getOrNull() ?: true
 
     private fun displayNameOf(uri: Uri): String? = runCatching {
         resolver.query(uri, arrayOf(MediaStore.Audio.Media.DISPLAY_NAME), null, null, null)?.use { cursor ->

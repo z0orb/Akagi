@@ -1,5 +1,6 @@
 package io.github.z0orb.akagi.feature.library
 
+import android.content.IntentSender
 import androidx.compose.runtime.Immutable
 import io.github.z0orb.akagi.R
 import io.github.z0orb.akagi.data.db.PlaylistSummary
@@ -17,6 +18,8 @@ data class LibraryUiState(
     val openPlaylist: PlaylistDetail? = null,
     val tab: LibraryTab = LibraryTab.DOWNLOADS,
     val dialog: LibraryDialog? = null,
+    /** Something the UI should do once, then acknowledge with [LibraryViewModel.onEventHandled]. */
+    val event: LibraryEvent? = null,
 )
 
 enum class LibraryTab(val title: Int) {
@@ -44,4 +47,20 @@ sealed interface LibraryDialog {
         LibraryDialog
 
     data class DeletePlaylist(val playlistId: Long, val name: String) : LibraryDialog
+
+    /** Shows how many playlists lose the track too (R13). */
+    data class DeleteTrack(val track: TrackEntity, val playlistCount: Int) : LibraryDialog
+}
+
+@Immutable
+sealed interface LibraryEvent {
+    val id: Long
+
+    data class Toast(override val id: Long, val message: Int) : LibraryEvent
+
+    /**
+     * The system must confirm deleting a file Akagi doesn't own (e.g. after a reinstall);
+     * the answer goes back through [LibraryViewModel.onDeleteConsentResult].
+     */
+    data class ConfirmFileDeletion(override val id: Long, val request: IntentSender) : LibraryEvent
 }

@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,6 +46,32 @@ internal fun LibraryDialogHost(dialog: LibraryDialog, playlists: List<PlaylistSu
         is LibraryDialog.AddToPlaylist -> AddToPlaylistDialog(dialog, playlists, actions)
 
         is LibraryDialog.NamePlaylist -> NamePlaylistDialog(dialog, actions)
+
+        is LibraryDialog.DeleteTrack -> AlertDialog(
+            onDismissRequest = actions.onDismissDialog,
+            title = { Text(stringResource(R.string.track_delete_title, dialog.track.title)) },
+            text = {
+                val body = stringResource(R.string.track_delete_body)
+                Text(
+                    if (dialog.playlistCount == 0) {
+                        body
+                    } else {
+                        body + " " +
+                            pluralStringResource(
+                                R.plurals.track_delete_playlists,
+                                dialog.playlistCount,
+                                dialog.playlistCount,
+                            )
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = actions.onConfirmDeleteTrack) { Text(stringResource(R.string.action_delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = actions.onDismissDialog) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
 
         is LibraryDialog.DeletePlaylist -> AlertDialog(
             onDismissRequest = actions.onDismissDialog,

@@ -1,6 +1,7 @@
 package io.github.z0orb.akagi.feature.main
 
 import android.Manifest
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -11,6 +12,7 @@ import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -35,6 +37,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.z0orb.akagi.R
@@ -50,6 +54,7 @@ import io.github.z0orb.akagi.feature.browser.FormatSheetActions
 import io.github.z0orb.akagi.feature.browser.FullscreenVideo
 import io.github.z0orb.akagi.feature.browser.rememberBrowserController
 import io.github.z0orb.akagi.feature.library.LibraryActions
+import io.github.z0orb.akagi.feature.library.LibraryEvent
 import io.github.z0orb.akagi.feature.library.LibraryPanel
 import io.github.z0orb.akagi.feature.library.LibraryViewModel
 import io.github.z0orb.akagi.feature.library.SidePanel
@@ -83,6 +88,9 @@ fun MainScreen(
     val fullscreenView = controller.fullscreenView
     var overlay by rememberSaveable { mutableStateOf(Overlay.NONE) }
     // Downloads work without it; progress then shows in the app only (PLAN §7.5).
+    val deleteConsent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+        libraryViewModel.onDeleteConsentResult(granted = it.resultCode == Activity.RESULT_OK)
+    }
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     val askForNotifications = {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -109,10 +117,18 @@ fun MainScreen(
     val libraryActions = remember(libraryViewModel, context) {
         LibraryActions(
             onSelectTab = libraryViewModel::onSelectTab,
-            onPlayTrack = { openFile(context, it.contentUri, it.codec) },
+            onPlayTrack = { track ->
+                if (track.missing) {
+                    showToast(context, R.string.track_missing_toast)
+                } else {
+                    openFile(context, track.contentUri, track.codec)
+                }
+            },
             onCancelTask = libraryViewModel::onCancelTask,
             onRetryTask = libraryViewModel::onRetryTask,
             onAddToPlaylist = libraryViewModel::onAddToPlaylistClick,
+            onDeleteTrack = libraryViewModel::onDeleteTrackClick,
+            onConfirmDeleteTrack = libraryViewModel::onConfirmDeleteTrack,
             onOpenPlaylist = libraryViewModel::onOpenPlaylist,
             onClosePlaylist = libraryViewModel::onClosePlaylist,
             onNewPlaylist = libraryViewModel::onNewPlaylistClick,
@@ -144,6 +160,18 @@ fun MainScreen(
         }
         downloadViewModel.onEventHandled(event.id)
     }
+    LaunchedEffect(libraryState.event) {
+        val event = libraryState.event ?: return@LaunchedEffect
+        when (event) {
+            is LibraryEvent.Toast -> showToast(context, event.message)
+
+            is LibraryEvent.ConfirmFileDeletion -> deleteConsent.launch(
+                IntentSenderRequest.Builder(event.request).build(),
+            )
+        }
+        libraryViewModel.onEventHandled(event.id)
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { libraryViewModel.onResume() }
 
     // Back order (PLAN §7.1): fullscreen → overlay → [player: Phase 5] → sidebar → WebView history → exit.
     // The handler registered last wins, so the most specific one comes last.

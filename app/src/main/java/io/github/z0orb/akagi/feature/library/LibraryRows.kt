@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -157,7 +158,7 @@ internal fun TrackRow(
             .padding(start = startPadding, end = 4.dp, top = 8.dp, bottom = 8.dp),
     ) {
         leading()
-        Thumbnail(track.thumbnailPath)
+        Thumbnail(track.thumbnailPath, modifier = if (track.missing) Modifier.alpha(MISSING_ALPHA) else Modifier)
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -167,17 +168,26 @@ internal fun TrackRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
+                val colors = MaterialTheme.colorScheme
                 Text(
-                    SizeFormatter.megabytes(track.sizeBytes),
+                    if (track.missing) {
+                        stringResource(
+                            R.string.track_missing,
+                        )
+                    } else {
+                        SizeFormatter.megabytes(track.sizeBytes)
+                    },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (track.missing) colors.error else colors.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     // Weighted, so at narrow widths the size shortens and the codec chip stays whole.
                     modifier = Modifier.weight(1f, fill = false),
                 )
-                Spacer(Modifier.width(8.dp))
-                CodecChip(codecLabel(track.codec))
+                if (!track.missing) {
+                    Spacer(Modifier.width(8.dp))
+                    CodecChip(codecLabel(track.codec))
+                }
             }
         }
         trailing()
@@ -251,3 +261,4 @@ internal fun RowMenu(entries: List<MenuEntry>, modifier: Modifier = Modifier) {
         }
     }
 }
+private const val MISSING_ALPHA = 0.4f

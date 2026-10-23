@@ -19,6 +19,19 @@ interface TrackDao {
     @Query("SELECT * FROM tracks WHERE videoId = :videoId")
     fun observeByVideoId(videoId: String): Flow<TrackEntity?>
 
+    @Query("SELECT * FROM tracks")
+    suspend fun getAll(): List<TrackEntity>
+
+    @Query("SELECT COUNT(*) FROM playlist_tracks WHERE trackId = :trackId")
+    suspend fun playlistCount(trackId: Long): Int
+
+    @Query("UPDATE tracks SET missing = :missing WHERE id = :id")
+    suspend fun setMissing(id: Long, missing: Boolean)
+
+    /** Its waveform and playlist entries go with it (FK cascade, D-008). */
+    @Query("DELETE FROM tracks WHERE id = :id")
+    suspend fun delete(id: Long)
+
     @Insert
     suspend fun insert(track: TrackEntity): Long
 
