@@ -140,7 +140,8 @@ class DownloadNotifier @Inject constructor(
         .setContentIntent(openApp())
         .addAction(0, context.getString(R.string.action_retry), action(DownloadActionReceiver.ACTION_RETRY, task.id))
         .addAction(0, context.getString(R.string.action_cancel), action(DownloadActionReceiver.ACTION_CANCEL, task.id))
-        .setGroup(GROUP)
+        // Not in GROUP: the service removes the group summary when nothing is left running, and Android removes
+        // the group's children with it, which would take this notification and its Retry button along.
         .setOnlyAlertOnce(true)
         .build()
 
