@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -29,6 +30,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -205,6 +208,7 @@ private fun DownloadsTab(state: LibraryUiState, actions: LibraryActions, guard: 
     }
     val list = rememberLazyListState()
     TrackScroll(guard, list)
+    KeepAtTop(list, headKey = if (state.tasks.isNotEmpty()) "active-header" else state.tracks.firstOrNull()?.id)
     LazyColumn(state = list, contentPadding = PaddingValues(bottom = 24.dp)) {
         if (state.tasks.isNotEmpty()) {
             item(key = "active-header", contentType = "header") {
@@ -234,5 +238,23 @@ private fun DownloadsTab(state: LibraryUiState, actions: LibraryActions, guard: 
                 },
             )
         }
+    }
+}
+
+private class HeadHolder(var key: Any? = null)
+
+/**
+ * The list is newest first, and LazyColumn keeps the first visible row in place when rows are added above it, so
+ * new downloads and tasks would appear out of sight. If the list was at the top, it stays there.
+ */
+@Composable
+private fun KeepAtTop(list: LazyListState, headKey: Any?) {
+    val shown = remember { HeadHolder() }
+    SideEffect {
+        // Runs before this frame's layout, so the list still reports the position the user saw.
+        if (shown.key != headKey && list.firstVisibleItemIndex == 0 && list.firstVisibleItemScrollOffset == 0) {
+            list.requestScrollToItem(0)
+        }
+        shown.key = headKey
     }
 }
