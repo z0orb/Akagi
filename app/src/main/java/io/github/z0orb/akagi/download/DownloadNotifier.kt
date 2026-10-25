@@ -25,7 +25,18 @@ class DownloadNotifier @Inject constructor(
     private val account: AccountRepository,
 ) {
     private val manager = NotificationManagerCompat.from(context)
-    private val shown = mutableSetOf<Long>()
+
+    // What each task's notification shows now. Only the main thread touches it (the service's collector and the
+    // coordinator's completion collector both run there, B-02), and a task is re-posted only when this changes:
+    // re-posting every second brought back a failure the user had swiped away (B-07) and cost an IPC per task.
+    private val shown = mutableMapOf<Long, TaskContent>()
+
+    private data class TaskContent(
+        val state: DownloadState,
+        val text: String,
+        val percent: Int,
+        val indeterminate: Boolean,
+    )
 
     init {
         val system = context.getSystemService(NotificationManager::class.java)
@@ -58,27 +69,22 @@ class DownloadNotifier @Inject constructor(
 
     fun refreshSummary(activeCount: Int) = notify(SUMMARY_ID, summary(activeCount))
 
-    /** Redraws one notification per queued, running or failed task and removes the ones that are gone. */
+    /** Keeps one notification per queued, running or failed task and removes the ones that are gone. Main thread. */
     fun showTasks(tasks: List<DownloadTask>, progress: Map<Long, DownloadProgress>) {
         if (!canNotify()) return
         val ids = tasks.map { it.id }.toSet()
-        (shown - ids).forEach { manager.cancel(taskNotificationId(it)) }
-        shown.retainAll(ids)
+        (shown.keys - ids).forEach { manager.cancel(taskNotificationId(it)) }
+        shown.keys.retainAll(ids)
         tasks.forEach { task ->
-            notify(
-                taskNotificationId(task.id),
-                if (task.state ==
-                    DownloadState.FAILED
-                ) {
-                    failed(task)
-                } else {
-                    running(task, progress[task.id])
-                },
-            )
-            shown += task.id
+            val content = contentOf(task, progress[task.id])
+            if (shown[task.id] == content) return@forEach
+            val notification = if (task.state == DownloadState.FAILED) failed(task, content) else running(task, content)
+            notify(taskNotificationId(task.id), notification)
+            shown[task.id] = content
         }
     }
 
+    /** Main thread only, like [showTasks]. */
     fun showCompleted(done: CompletedDownload) {
         if (!canNotify()) return
         manager.cancel(taskNotificationId(done.taskId))
@@ -95,7 +101,12 @@ class DownloadNotifier @Inject constructor(
         )
     }
 
-    private fun running(task: DownloadTask, progress: DownloadProgress?): Notification {
+    private fun contentOf(task: DownloadTask, progress: DownloadProgress?): TaskContent {
+        if (task.state == DownloadState.FAILED) {
+            val text = task.error?.describe(context.resources, account.state.value)
+                ?: context.getString(R.string.notif_failed)
+            return TaskContent(task.state, text, percent = 0, indeterminate = false)
+        }
         val percent = ((progress?.fraction ?: 0f) * 100).toInt()
         val text = when {
             task.state == DownloadState.QUEUED -> context.getString(R.string.notif_queued)
@@ -113,11 +124,15 @@ class DownloadNotifier @Inject constructor(
             else -> context.getString(R.string.notif_progress, percent)
         }
         val indeterminate = task.state != DownloadState.RUNNING || progress == null
-        return NotificationCompat.Builder(context, CHANNEL_PROGRESS)
+        return TaskContent(task.state, text, percent, indeterminate)
+    }
+
+    private fun running(task: DownloadTask, content: TaskContent): Notification =
+        NotificationCompat.Builder(context, CHANNEL_PROGRESS)
             .setSmallIcon(R.drawable.ic_stat_akagi)
             .setContentTitle(task.request.title)
-            .setContentText(text)
-            .setProgress(PROGRESS_MAX, percent, indeterminate)
+            .setContentText(content.text)
+            .setProgress(PROGRESS_MAX, content.percent, content.indeterminate)
             .setContentIntent(openApp())
             .addAction(
                 0,
@@ -129,14 +144,14 @@ class DownloadNotifier @Inject constructor(
             .setSilent(true)
             .setOnlyAlertOnce(true)
             .build()
-    }
 
-    private fun failed(task: DownloadTask): Notification = NotificationCompat.Builder(context, CHANNEL_EVENTS)
+    private fun failed(task: DownloadTask, content: TaskContent): Notification = NotificationCompat.Builder(
+        context,
+        CHANNEL_EVENTS,
+    )
         .setSmallIcon(R.drawable.ic_stat_akagi)
         .setContentTitle(task.request.title)
-        .setContentText(
-            task.error?.describe(context.resources, account.state.value) ?: context.getString(R.string.notif_failed),
-        )
+        .setContentText(content.text)
         .setContentIntent(openApp())
         .addAction(0, context.getString(R.string.action_retry), action(DownloadActionReceiver.ACTION_RETRY, task.id))
         .addAction(0, context.getString(R.string.action_cancel), action(DownloadActionReceiver.ACTION_CANCEL, task.id))

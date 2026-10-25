@@ -12,6 +12,7 @@ import io.github.z0orb.akagi.ytdlp.YtDlpUpdater
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -43,7 +44,8 @@ class DownloadCoordinator @Inject constructor(
                 .distinctUntilChanged()
                 .collect { busy -> if (busy) startService() }
         }
-        scope.launch { queue.completed.collect(notifier::showCompleted) }
+        // Main, where DownloadService draws the task notifications: the notifier isn't thread-safe (B-02).
+        scope.launch(Dispatchers.Main) { queue.completed.collect(notifier::showCompleted) }
     }
 
     private fun startService() {
