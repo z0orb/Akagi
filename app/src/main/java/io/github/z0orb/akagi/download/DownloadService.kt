@@ -14,6 +14,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 
@@ -30,9 +31,14 @@ class DownloadService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var observing = false
 
+    // The newest start request. stopSelfResult(it) refuses to stop when a later start is already on its way, which
+    // would otherwise crash the app ("startForegroundService() did not then call startForeground()", B-06).
+    private var lastStartId = 0
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        lastStartId = startId
         ServiceCompat.startForeground(
             this,
             DownloadNotifier.SUMMARY_ID,
@@ -52,11 +58,11 @@ class DownloadService : Service() {
         combine(queue.tasks, queue.progress) { tasks, progress -> tasks to progress }
             .sample(NOTIFICATION_INTERVAL_MS)
             .collect { (tasks, progress) ->
-                val active = tasks.count { it.state != DownloadState.FAILED }
+                val active = activeCount(tasks)
                 notifier.showTasks(tasks, progress)
-                if (active == 0) {
-                    ServiceCompat.stopForeground(this@DownloadService, ServiceCompat.STOP_FOREGROUND_REMOVE)
-                    stopSelf()
+                // The sample can be up to a second old, so ask the store again before giving up the service.
+                if (active == 0 && activeCount(queue.tasks.first()) == 0) {
+                    stop()
                 } else {
                     notifier.refreshSummary(active)
                 }
@@ -67,9 +73,16 @@ class DownloadService : Service() {
     override fun onTimeout(startId: Int, fgsType: Int) {
         scope.launch {
             queue.interruptAll()
-            ServiceCompat.stopForeground(this@DownloadService, ServiceCompat.STOP_FOREGROUND_REMOVE)
-            stopSelf()
+            stop()
         }
+    }
+
+    private fun activeCount(tasks: List<DownloadTask>) = tasks.count { it.state != DownloadState.FAILED }
+
+    private fun stop() {
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        // If a new download raced in, its start is still pending: onStartCommand then promotes the service again.
+        stopSelfResult(lastStartId)
     }
 
     override fun onDestroy() {
