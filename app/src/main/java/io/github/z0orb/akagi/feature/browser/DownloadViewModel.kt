@@ -138,11 +138,12 @@ class DownloadViewModel @Inject constructor(
         val model = sheet.value ?: return
         val ready = model.load as? Load.Ready ?: return
         val option = model.selected ?: return
+        // Closed first, so a second tap can't reach a sheet whose download is already being queued (B-04).
+        sheet.value = null
         viewModelScope.launch {
             val existing = library.observeTrack(model.videoId).first()
             enqueue(ready.info, option, replaceTrackId = existing?.id)
             settings.rememberChoice(option.codec, option.tier?.name)
-            sheet.value = null
         }
     }
 

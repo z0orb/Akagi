@@ -69,6 +69,10 @@ class DownloadQueue(
     private val jobs = mutableMapOf<Long, Job>()
     private val lastProgressAt = mutableMapOf<Long, Long>()
 
+    // The check and the insert in [enqueue] must be one step: a double tap, or a long-press racing the sheet, would
+    // otherwise queue a video twice and two yt-dlp runs could leave a "… (1)" copy (B-04).
+    private val enqueueLock = Mutex()
+
     val tasks: Flow<List<DownloadTask>> = store.observe()
 
     private val _progress = MutableStateFlow<Map<Long, DownloadProgress>>(emptyMap())
@@ -88,13 +92,13 @@ class DownloadQueue(
     }
 
     /** Returns the id of the task for this video: an active one is reused, so tapping twice queues once. */
-    suspend fun enqueue(request: DownloadRequest): Long {
+    suspend fun enqueue(request: DownloadRequest): Long = enqueueLock.withLock {
         val existing = store.all().filter { it.request.videoId == request.videoId }
-        existing.firstOrNull { it.state != DownloadState.FAILED }?.let { return it.id }
+        existing.firstOrNull { it.state != DownloadState.FAILED }?.let { return@withLock it.id }
         existing.forEach { store.delete(it.id) }
         val id = store.insert(request)
         start(id)
-        return id
+        id
     }
 
     suspend fun cancel(id: Long) {

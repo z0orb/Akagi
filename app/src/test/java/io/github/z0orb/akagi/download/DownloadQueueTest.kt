@@ -7,6 +7,7 @@ import io.github.z0orb.akagi.data.db.DownloadState
 import io.github.z0orb.akagi.ytdlp.DownloadProgress
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -16,6 +17,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -27,9 +29,16 @@ class DownloadQueueTest {
         val rows = MutableStateFlow<Map<Long, DownloadTask>>(emptyMap())
         private var nextId = 1L
 
+        // Room's reads suspend; with this on, so do the fake's, so concurrent callers interleave.
+        var suspendReads = false
+
         override fun observe(): Flow<List<DownloadTask>> = rows.map { it.values.sortedBy(DownloadTask::id) }
 
-        override suspend fun all() = rows.value.values.sortedBy(DownloadTask::id)
+        override suspend fun all(): List<DownloadTask> {
+            val snapshot = rows.value.values.sortedBy(DownloadTask::id)
+            if (suspendReads) yield()
+            return snapshot
+        }
 
         override suspend fun get(id: Long) = rows.value[id]
 
@@ -116,6 +125,16 @@ class DownloadQueueTest {
         val first = queue.enqueue(request("same"))
         val second = queue.enqueue(request("same"))
         assertEquals(first, second)
+        assertEquals(1, store.rows.value.size)
+    }
+
+    @Test
+    fun `two concurrent enqueues of one video queue it once`() = runTest {
+        val queue = queue()
+        store.suspendReads = true
+        val first = async { queue.enqueue(request("same")) }
+        val second = async { queue.enqueue(request("same")) }
+        assertEquals(first.await(), second.await())
         assertEquals(1, store.rows.value.size)
     }
 
