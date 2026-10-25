@@ -14,6 +14,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -42,6 +43,9 @@ class WaveformGenerator @Inject constructor(private val ffmpeg: BundledFfmpeg) {
     private suspend fun attempt(name: String, file: File, decode: suspend (File) -> AudioAnalysis): AudioAnalysis? =
         try {
             decode(file).takeIf { it.peaks != null }
+        } catch (e: CancellationException) {
+            // An IllegalStateException too: without this, a cancelled download decoded the whole file again.
+            throw e
         } catch (e: IOException) {
             Log.w(TAG, "$name couldn't decode ${file.name}", e)
             null

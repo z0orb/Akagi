@@ -82,7 +82,8 @@ class MediaStoreAudioStore @Inject constructor(
         try {
             copy(source, uri, mode = "w")
             resolver.update(uri, ContentValues().apply { put(MediaStore.Audio.Media.IS_PENDING, 0) }, null, null)
-        } catch (e: IOException) {
+        } catch (e: Exception) {
+            // Any failure, not only IOException: a SecurityException here would otherwise leave an IS_PENDING row.
             deleteQuietly(uri)
             throw AppException(AppError.Storage, e.message, e)
         }

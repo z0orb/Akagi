@@ -14,6 +14,7 @@ import io.github.z0orb.akagi.ytdlp.DownloadProgress
 import io.github.z0orb.akagi.ytdlp.YtDlpEngine
 import java.io.File
 import javax.inject.Inject
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
@@ -61,11 +62,14 @@ class DownloadPipeline @Inject constructor(
         onPostProcessing()
         val analysis = waveforms.analyse(file)
         val existing = trackDao.findByVideoId(request.videoId)
-        val fileName = FileNamer.fileName(request.title, request.videoId, request.codec.extension)
-        val saved = audioStore.save(file, fileName, request.title, request.codec, replacing = existing?.contentUri)
+        // Awaited before saving: it can take up to 45 s, and a cancel during that wait used to leave a saved file.
         val thumbnailPath = thumbnail.await() ?: existing?.thumbnailPath
-        trackDao.save(
-            TrackEntity(
+        val fileName = FileNamer.fileName(request.title, request.videoId, request.codec.extension)
+        // The file and its row are saved as one step (B-03). A cancel between them left a file in Music/Akagi that
+        // the library didn't know, and the next download of the video became "… (1)".
+        withContext(NonCancellable) {
+            val saved = audioStore.save(file, fileName, request.title, request.codec, replacing = existing?.contentUri)
+            val track = TrackEntity(
                 videoId = request.videoId,
                 title = request.title,
                 durationMs = analysis.durationMs,
@@ -76,9 +80,14 @@ class DownloadPipeline @Inject constructor(
                 fileName = fileName,
                 thumbnailPath = thumbnailPath,
                 downloadedAt = clock.nowMillis(),
-            ),
-            analysis.peaks,
-        )
+            )
+            try {
+                trackDao.save(track, analysis.peaks)
+            } catch (e: Exception) {
+                if (saved.contentUri != existing?.contentUri) runCatching { audioStore.delete(saved.contentUri) }
+                throw e
+            }
+        }
         cleanUp(task.id)
     }
 
