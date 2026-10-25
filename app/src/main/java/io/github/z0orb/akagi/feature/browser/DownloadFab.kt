@@ -29,12 +29,13 @@ private const val ANIMATION_MS = 220
 
 /**
  * Download button for the video on screen (PLAN §7.3): tap opens the format sheet, long-press downloads
- * with the remembered choice. Shows fetching, progress and already-downloaded states.
+ * with the remembered choice. Shows fetching, progress and already-downloaded states. [state] is read inside the
+ * button, so a progress tick redraws only the button (PF-02).
  */
 @Composable
 fun DownloadFab(
     visible: Boolean,
-    state: FabState,
+    state: () -> FabState,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -63,7 +64,7 @@ fun DownloadFab(
                     onLongClick = onLongClick,
                 ),
             ) {
-                FabContent(state)
+                FabContent(state())
             }
         }
     }

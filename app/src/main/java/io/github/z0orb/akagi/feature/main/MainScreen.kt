@@ -28,12 +28,14 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -55,6 +57,7 @@ import io.github.z0orb.akagi.feature.browser.FormatSheet
 import io.github.z0orb.akagi.feature.browser.FormatSheetActions
 import io.github.z0orb.akagi.feature.browser.FullscreenVideo
 import io.github.z0orb.akagi.feature.browser.PageErrorView
+import io.github.z0orb.akagi.feature.browser.SheetUiState
 import io.github.z0orb.akagi.feature.browser.rememberBrowserController
 import io.github.z0orb.akagi.feature.library.LibraryActions
 import io.github.z0orb.akagi.feature.library.LibraryEvent
@@ -64,8 +67,10 @@ import io.github.z0orb.akagi.feature.library.SidePanel
 import io.github.z0orb.akagi.feature.library.rememberSidePanelState
 import io.github.z0orb.akagi.feature.player.PlayerActions
 import io.github.z0orb.akagi.feature.player.PlayerBar
+import io.github.z0orb.akagi.feature.player.PlayerUiState
 import io.github.z0orb.akagi.feature.player.PlayerViewModel
 import io.github.z0orb.akagi.feature.settings.SettingsScreen
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 /** Full-screen pages drawn over the browser, so the WebView never leaves composition (D-004). */
@@ -87,12 +92,14 @@ fun MainScreen(
     playerViewModel: PlayerViewModel = viewModel(),
 ) {
     val browserState by browserViewModel.uiState.collectAsStateWithLifecycle()
-    val downloadState by downloadViewModel.uiState.collectAsStateWithLifecycle()
     val mainState by mainViewModel.uiState.collectAsStateWithLifecycle()
-    val libraryState by libraryViewModel.uiState.collectAsStateWithLifecycle()
-    val playerState by playerViewModel.uiState.collectAsStateWithLifecycle()
-    // Not read here: only the task rows read it, so progress ticks don't recompose this screen (PF-01).
+    // Not read here but in the parts that use them (FAB, sheet, panel, player, the effects below), so a progress tick
+    // or a play/pause doesn't recompose this whole screen (PF-01, PF-02).
+    val downloadState = downloadViewModel.uiState.collectAsStateWithLifecycle()
+    val libraryState = libraryViewModel.uiState.collectAsStateWithLifecycle()
+    val playerState = playerViewModel.uiState.collectAsStateWithLifecycle()
     val downloadProgress = libraryViewModel.progress.collectAsStateWithLifecycle()
+    val hasTrack by remember { derivedStateOf { playerState.value.track != null } }
     var playerExpanded by rememberSaveable { mutableStateOf(false) }
     val playerActions = remember(playerViewModel) {
         PlayerActions(
@@ -174,7 +181,9 @@ fun MainScreen(
     }
 
     // Akagi starting playback pauses YouTube (R11).
-    LaunchedEffect(playerState.isPlaying) { if (playerState.isPlaying) controller.pauseMedia() }
+    LaunchedEffect(controller) {
+        snapshotFlow { playerState.value.isPlaying }.collect { playing -> if (playing) controller.pauseMedia() }
+    }
     LaunchedEffect(browserState.pendingLoad) {
         browserState.pendingLoad?.let { load ->
             controller.load(load.url)
@@ -182,23 +191,25 @@ fun MainScreen(
         }
     }
     LaunchedEffect(browserState.currentVideo) { downloadViewModel.onVideoChanged(browserState.currentVideo?.videoId) }
-    LaunchedEffect(downloadState.event) {
-        val event = downloadState.event ?: return@LaunchedEffect
-        when (event) {
-            is DownloadEvent.Toast -> showToast(context, event.message)
+    LaunchedEffect(downloadViewModel) {
+        snapshotFlow { downloadState.value.event }.filterNotNull().collect { event ->
+            when (event) {
+                is DownloadEvent.Toast -> showToast(context, event.message)
+            }
+            downloadViewModel.onEventHandled(event.id)
         }
-        downloadViewModel.onEventHandled(event.id)
     }
-    LaunchedEffect(libraryState.event) {
-        val event = libraryState.event ?: return@LaunchedEffect
-        when (event) {
-            is LibraryEvent.Toast -> showToast(context, event.message)
+    LaunchedEffect(libraryViewModel) {
+        snapshotFlow { libraryState.value.event }.filterNotNull().collect { event ->
+            when (event) {
+                is LibraryEvent.Toast -> showToast(context, event.message)
 
-            is LibraryEvent.ConfirmFileDeletion -> deleteConsent.launch(
-                IntentSenderRequest.Builder(event.request).build(),
-            )
+                is LibraryEvent.ConfirmFileDeletion -> deleteConsent.launch(
+                    IntentSenderRequest.Builder(event.request).build(),
+                )
+            }
+            libraryViewModel.onEventHandled(event.id)
         }
-        libraryViewModel.onEventHandled(event.id)
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { libraryViewModel.onResume() }
 
@@ -206,7 +217,7 @@ fun MainScreen(
     // The handler registered last wins, so the most specific one comes last.
     BackHandler(enabled = browserState.canGoBack) { controller.goBack() }
     BackHandler(enabled = sidePanel.isOpen) { scope.launch { sidePanel.close() } }
-    BackHandler(enabled = playerExpanded && playerState.track != null) { playerExpanded = false }
+    BackHandler(enabled = playerExpanded && hasTrack) { playerExpanded = false }
     BackHandler(enabled = overlay != Overlay.NONE) { overlay = Overlay.NONE }
     BackHandler(enabled = fullscreenView != null) { controller.exitFullscreen() }
 
@@ -231,7 +242,7 @@ fun MainScreen(
                 }
                 DownloadFab(
                     visible = browserState.currentVideo != null && fullscreenView == null,
-                    state = downloadState.fab,
+                    state = { downloadState.value.fab },
                     onClick = {
                         askForNotifications()
                         downloadViewModel.onFabClick()
@@ -244,7 +255,7 @@ fun MainScreen(
                 )
                 SidePanel(state = sidePanel, handleVisible = fullscreenView == null) { narrowWidth ->
                     LibraryPanel(
-                        state = libraryState,
+                        state = libraryState.value,
                         progress = { downloadProgress.value[it] },
                         actions = libraryActions,
                         open = sidePanel.isOpen,
@@ -252,15 +263,12 @@ fun MainScreen(
                     )
                 }
             }
-            playerState.track?.let { track ->
-                PlayerBar(
-                    state = playerState,
-                    track = track,
-                    actions = playerActions,
-                    expanded = playerExpanded,
-                    onExpandedChange = { playerExpanded = it },
-                )
-            }
+            PlayerSlot(
+                state = { playerState.value },
+                actions = playerActions,
+                expanded = playerExpanded,
+                onExpandedChange = { playerExpanded = it },
+            )
         }
         AnimatedVisibility(
             visible = overlay == Overlay.SETTINGS,
@@ -282,7 +290,7 @@ fun MainScreen(
         }
         fullscreenView?.let { FullscreenVideo(view = it, modifier = Modifier.fillMaxSize()) }
 
-        downloadState.sheet?.let { FormatSheet(state = it, actions = sheetActions) }
+        FormatSheetSlot(sheet = { downloadState.value.sheet }, actions = sheetActions)
 
         if (mainState.crashReport != null) {
             CrashReportDialog(
@@ -294,6 +302,23 @@ fun MainScreen(
             )
         }
     }
+}
+
+// The slots read their state themselves, so its changes recompose only them, not MainScreen (PF-02).
+@Composable
+private fun PlayerSlot(
+    state: () -> PlayerUiState,
+    actions: PlayerActions,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+) {
+    val current = state()
+    current.track?.let { track -> PlayerBar(current, track, actions, expanded, onExpandedChange) }
+}
+
+@Composable
+private fun FormatSheetSlot(sheet: () -> SheetUiState?, actions: FormatSheetActions) {
+    sheet()?.let { FormatSheet(state = it, actions = actions) }
 }
 
 private fun showToast(context: Context, message: Int) {
