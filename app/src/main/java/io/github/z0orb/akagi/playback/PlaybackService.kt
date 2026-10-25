@@ -74,9 +74,15 @@ class PlaybackService : MediaSessionService() {
         player.addListener(ShuffleFromCurrentTrack(player))
         player.addAnalyticsListener(ReportOutputFormat(routes))
         player.addListener(
-            SkipMissingFiles(player) {
-                Toast.makeText(this, R.string.player_skipped_missing, Toast.LENGTH_SHORT).show()
-            },
+            HandlePlaybackErrors(
+                player,
+                onSkippedMissing = {
+                    Toast.makeText(this, R.string.player_skipped_missing, Toast.LENGTH_SHORT).show()
+                },
+                onUnplayable = { title ->
+                    Toast.makeText(this, getString(R.string.player_couldnt_play, title), Toast.LENGTH_SHORT).show()
+                },
+            ),
         )
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider.Builder(this)
@@ -168,14 +174,46 @@ class PlaybackService : MediaSessionService() {
 
     /**
      * A queued file deleted outside Akagi would stop playback with an error; it leaves the queue instead
-     * and the next track plays. The library flags it as missing on the next resume (D-042).
+     * and the next track plays. The library flags it as missing on the next resume (D-042). Any other error
+     * used to leave the player silently paused on the bad track, with Play retrying it (B-08).
      */
-    private class SkipMissingFiles(private val player: ExoPlayer, private val onSkip: () -> Unit) : Player.Listener {
+    private class HandlePlaybackErrors(
+        private val player: ExoPlayer,
+        private val onSkippedMissing: () -> Unit,
+        private val onUnplayable: (title: String) -> Unit,
+    ) : Player.Listener {
+        private var failuresInARow = 0
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            if (isPlaying) failuresInARow = 0
+        }
+
         override fun onPlayerError(error: PlaybackException) {
-            if (error.errorCode != PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND) return
-            player.removeMediaItem(player.currentMediaItemIndex)
-            if (player.mediaItemCount > 0) player.prepare()
-            onSkip()
+            // No permission: the file belongs to an earlier install of Akagi, which reads like a missing file.
+            val missing = error.errorCode == PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND ||
+                error.errorCode == PlaybackException.ERROR_CODE_IO_NO_PERMISSION
+            if (!missing) failuresInARow++
+            val title = player.currentMediaItem?.mediaMetadata?.title?.toString().orEmpty()
+            val action =
+                PlaybackErrorPolicy.decide(missing, player.hasNextMediaItem(), failuresInARow, player.mediaItemCount)
+            when (action) {
+                PlaybackErrorAction.REMOVE_AND_CONTINUE -> {
+                    player.removeMediaItem(player.currentMediaItemIndex)
+                    if (player.mediaItemCount > 0) player.prepare()
+                    onSkippedMissing()
+                }
+
+                PlaybackErrorAction.SKIP_TO_NEXT -> {
+                    player.seekToNextMediaItem()
+                    player.prepare()
+                    onUnplayable(title)
+                }
+
+                PlaybackErrorAction.STOP -> {
+                    player.pause()
+                    onUnplayable(title)
+                }
+            }
         }
     }
 
