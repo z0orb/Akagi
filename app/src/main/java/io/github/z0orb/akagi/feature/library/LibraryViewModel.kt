@@ -62,7 +62,7 @@ class LibraryViewModel @Inject constructor(
         savedState.getStateFlow(TAB_KEY, LibraryTab.DOWNLOADS),
         combine(dialog, event, account.state, ::Triple),
     ) { (tasks, progress, tracks), summaries, detail, tab, (dialog, event, signIn) ->
-        LibraryUiState(tasks, progress, tracks, summaries, detail, tab, dialog, event, signIn)
+        LibraryUiState(tasks, progress, tracks, summaries, detail, tab, dialog, event, signIn, loaded = true)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), LibraryUiState())
 
     fun onSelectTab(tab: LibraryTab) {

@@ -113,7 +113,7 @@ private fun TabPager(
         ) { page ->
             when (LibraryTab.entries[page]) {
                 LibraryTab.DOWNLOADS -> DownloadsTab(state, actions, guard)
-                LibraryTab.PLAYLISTS -> PlaylistsTab(state.playlists, actions, guard)
+                LibraryTab.PLAYLISTS -> if (state.loaded) PlaylistsTab(state.playlists, actions, guard)
             }
         }
     }
@@ -202,6 +202,7 @@ class LibraryActions(
 
 @Composable
 private fun DownloadsTab(state: LibraryUiState, actions: LibraryActions, guard: ScrollGuard) {
+    if (!state.loaded) return
     if (state.tasks.isEmpty() && state.tracks.isEmpty()) {
         EmptyState(stringResource(R.string.downloads_empty))
         return

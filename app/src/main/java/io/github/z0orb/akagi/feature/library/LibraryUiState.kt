@@ -23,6 +23,8 @@ data class LibraryUiState(
     val event: LibraryEvent? = null,
     /** Words the failed tasks' account errors (PLAN §7.15). */
     val signIn: SignInState = SignInState(),
+    /** False until Room's first result, so the empty states don't flash before the rows arrive (B-15). */
+    val loaded: Boolean = false,
 )
 
 enum class LibraryTab(val title: Int) {
