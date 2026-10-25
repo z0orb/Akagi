@@ -4,8 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.util.Log
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.z0orb.akagi.core.di.ApplicationScope
@@ -18,13 +18,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * After headphones (wired, Bluetooth, TWS) drop while Akagi is playing, sets the music volume to 0 once,
- * so pressing play again can't blast from the speaker (R4, PLAN §7.11).
+ * After headphones (wired, Bluetooth, TWS, a USB DAC or any other external output) drop while Akagi is
+ * playing, sets the music volume to 0 once, so pressing play again can't blast from the speaker
+ * (R4, PLAN §7.11).
  */
 @Singleton
 class HeadphoneDisconnectHandler @Inject constructor(
     @ApplicationContext private val context: Context,
     @ApplicationScope private val scope: CoroutineScope,
+    private val routes: AudioRouteMonitor,
 ) {
     private val audio = context.getSystemService(AudioManager::class.java)
     private var muting: Job? = null
@@ -37,10 +39,14 @@ class HeadphoneDisconnectHandler @Inject constructor(
         if (muting?.isActive == true) return
         muting = scope.launch {
             val settled = withTimeoutOrNull(SETTLE_TIMEOUT_MS) {
-                while (headsetConnected()) delay(POLL_MS)
+                while (!mediaOnSpeaker(routes.mediaRouteKind(), routes.connectedKinds())) delay(POLL_MS)
             }
             // Still on a headset after the timeout (e.g. a second pair is connected): leave its volume alone.
-            if (settled != null) runCatching { audio.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0) }
+            if (settled != null) {
+                runCatching { audio.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0) }
+            } else {
+                Log.w(TAG, "Media still on ${routes.mediaRouteKind()} after unplug; volume left as is")
+            }
         }
     }
 
@@ -58,23 +64,11 @@ class HeadphoneDisconnectHandler @Inject constructor(
         return receiver
     }
 
-    private fun headsetConnected(): Boolean =
-        audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any { it.type in headsetTypes }
-
     private companion object {
-        const val SETTLE_TIMEOUT_MS = 1_500L
-        const val POLL_MS = 100L
+        const val TAG = "HeadphoneDisconnect"
 
-        // The BLE and USB types are plain ints, so listing them is safe below the API they were added in.
-        val headsetTypes = setOf(
-            AudioDeviceInfo.TYPE_WIRED_HEADSET,
-            AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
-            AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
-            AudioDeviceInfo.TYPE_USB_HEADSET,
-            AudioDeviceInfo.TYPE_HEARING_AID,
-            AudioDeviceInfo.TYPE_BLE_HEADSET,
-            AudioDeviceInfo.TYPE_BLE_SPEAKER,
-        )
+        // Android drops a noisy device about 1 s after the broadcast; a USB DAC can take longer than wired.
+        const val SETTLE_TIMEOUT_MS = 5_000L
+        const val POLL_MS = 100L
     }
 }
