@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.z0orb.akagi.R
+import io.github.z0orb.akagi.data.db.TrackEntity
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -112,8 +114,22 @@ private fun ButtonLabel(text: String) {
 @Composable
 private fun ReorderableTracks(detail: PlaylistDetail, actions: LibraryActions, guard: ScrollGuard) {
     val haptics = LocalHapticFeedback.current
-    // Moves happen locally while dragging; the new order is written once, when the drag ends.
-    var tracks by remember(detail.tracks) { mutableStateOf(detail.tracks) }
+    // Moves happen locally while dragging; the new order is written once, when the drag ends. Room's updates wait
+    // until then: a member row changing mid-drag (a re-download, the missing flag) snapped the row back (B-14).
+    var tracks by remember(detail.id) { mutableStateOf(detail.tracks) }
+    var dragStartOrder by remember(detail.id) { mutableStateOf<List<Long>?>(null) }
+    var heldBack by remember(detail.id) { mutableStateOf<List<TrackEntity>?>(null) }
+    LaunchedEffect(detail.tracks) {
+        if (dragStartOrder == null) tracks = detail.tracks else heldBack = detail.tracks
+    }
+
+    fun endDrag() {
+        val order = tracks.map { it.id }
+        // An unchanged order isn't written; Room's re-emission after a write brings any held-back change anyway.
+        if (order != dragStartOrder) actions.onReorder(detail.id, order) else heldBack?.let { tracks = it }
+        heldBack = null
+        dragStartOrder = null
+    }
     val listState = rememberLazyListState()
     TrackScroll(guard, listState)
     val reorderState = rememberReorderableLazyListState(listState) { from, to ->
@@ -158,9 +174,10 @@ private fun ReorderableTracks(detail: PlaylistDetail, actions: LibraryActions, g
                                     .size(width = 36.dp, height = 48.dp)
                                     .draggableHandle(
                                         onDragStarted = {
+                                            dragStartOrder = tracks.map { it.id }
                                             haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
                                         },
-                                        onDragStopped = { actions.onReorder(detail.id, tracks.map { it.id }) },
+                                        onDragStopped = { endDrag() },
                                     ),
                             ) {
                                 Icon(
