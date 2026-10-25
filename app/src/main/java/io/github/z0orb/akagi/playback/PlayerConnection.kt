@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * The app's handle on [PlaybackService] (PLAN §5): a [MediaController] turned into a [StateFlow].
@@ -71,14 +72,15 @@ class PlayerConnection @Inject constructor(@ApplicationContext private val conte
         future?.let { MediaController.releaseFuture(it) }
     }
 
-    /** Replaces the queue and starts playing it. */
-    suspend fun play(queue: PlayQueue) {
-        val player = awaitController()
+    /** Replaces the queue and starts playing it. False when the player service couldn't be reached. */
+    suspend fun play(queue: PlayQueue): Boolean {
+        val player = awaitController() ?: return false
         source = queue.source
         queue.shuffle?.let { player.shuffleModeEnabled = it }
         player.setMediaItems(queue.items.map { it.toMediaItem() }, queue.startIndex, 0L)
         player.prepare()
         player.play()
+        return true
     }
 
     @OptIn(UnstableApi::class)
@@ -123,9 +125,15 @@ class PlayerConnection @Inject constructor(@ApplicationContext private val conte
     /** Read on demand by the seekbar's ticker rather than pushed through [state]. */
     fun positionMs(): Long = controller.value?.currentPosition ?: 0L
 
-    private suspend fun awaitController(): MediaController {
-        connect()
-        return controller.filterNotNull().first()
+    // A bind that fails or never answers used to leave the tap waiting for ever (B-11). One fresh attempt is made,
+    // since a stale pending future would otherwise block every later connect().
+    private suspend fun awaitController(): MediaController? {
+        repeat(CONNECT_ATTEMPTS) {
+            connect()
+            withTimeoutOrNull(CONNECT_TIMEOUT_MS) { controller.filterNotNull().first() }?.let { return it }
+            disconnect()
+        }
+        return null
     }
 
     private fun onConnected(future: ListenableFuture<MediaController>) {
@@ -178,5 +186,10 @@ class PlayerConnection @Inject constructor(@ApplicationContext private val conte
         RepeatMode.OFF -> Player.REPEAT_MODE_OFF
         RepeatMode.ALL -> Player.REPEAT_MODE_ALL
         RepeatMode.ONE -> Player.REPEAT_MODE_ONE
+    }
+
+    private companion object {
+        const val CONNECT_ATTEMPTS = 2
+        const val CONNECT_TIMEOUT_MS = 5_000L
     }
 }

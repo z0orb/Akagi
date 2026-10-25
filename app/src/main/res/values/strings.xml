@@ -142,6 +142,7 @@
     <string name="player_repeat_one">Repeat one</string>
     <string name="player_skipped_missing">Skipped a file that was deleted or moved outside Akagi.</string>
     <string name="player_couldnt_play">Couldn\'t play %1$s</string>
+    <string name="player_unavailable">Couldn\'t start the player. Try again.</string>
     <string name="link_no_app">No app can open this link</string>
 
     <!-- Settings (PLAN §7.14) -->

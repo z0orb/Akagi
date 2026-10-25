@@ -157,7 +157,10 @@ class DownloadViewModel @Inject constructor(
         // Same as tapping the track in Downloads: the whole list is queued.
         viewModelScope.launch {
             val queue = QueueFactory.fromDownloads(library.observeTracks().first(), content.trackId)
-            if (queue == null) emit { DownloadEvent.Toast(it, R.string.track_missing_toast) } else player.play(queue)
+            when {
+                queue == null -> emit { DownloadEvent.Toast(it, R.string.track_missing_toast) }
+                !player.play(queue) -> emit { DownloadEvent.Toast(it, R.string.player_unavailable) }
+            }
         }
     }
 

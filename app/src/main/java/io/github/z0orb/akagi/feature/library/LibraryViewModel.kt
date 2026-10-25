@@ -100,7 +100,9 @@ class LibraryViewModel @Inject constructor(
 
     private fun play(queue: PlayQueue?) {
         queue ?: return
-        viewModelScope.launch { player.play(queue) }
+        viewModelScope.launch {
+            if (!player.play(queue)) emit { LibraryEvent.Toast(it, R.string.player_unavailable) }
+        }
     }
 
     fun onCancelTask(taskId: Long) {
