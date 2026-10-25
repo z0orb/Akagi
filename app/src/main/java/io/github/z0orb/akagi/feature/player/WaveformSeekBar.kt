@@ -5,6 +5,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,12 +30,13 @@ import io.github.z0orb.akagi.core.designsystem.theme.waveformUnplayed
 /**
  * The track's waveform as bars, played part in the primary colour (PLAN §7.13). Tap seeks; a horizontal
  * drag scrubs and seeks on release, reporting the scrub position through [onScrub] for a time preview.
- * Without a waveform it draws flat bars.
+ * Without a waveform it draws flat bars. [progress] is read at draw time, so a tick redraws the bars without
+ * recomposing (PF-03); only the whole percent goes to accessibility.
  */
 @Composable
 fun WaveformSeekBar(
     waveform: Waveform?,
-    progress: Float,
+    progress: () -> Float,
     onSeek: (Float) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -43,9 +45,9 @@ fun WaveformSeekBar(
     var scrub by remember { mutableStateOf<Float?>(null) }
     val currentOnSeek by rememberUpdatedState(onSeek)
     val currentOnScrub by rememberUpdatedState(onScrub)
-    val shown = (scrub ?: progress).coerceIn(0f, 1f)
-    // Read at draw time, so a progress tick redraws without rebuilding the cached bars.
-    val drawnProgress = rememberUpdatedState(shown)
+    val currentProgress by rememberUpdatedState(progress)
+    val shown = { (scrub ?: currentProgress()).coerceIn(0f, 1f) }
+    val percent by remember { derivedStateOf { (shown() * PERCENT).toInt() } }
     val played = MaterialTheme.colorScheme.primary
     val unplayed = MaterialTheme.colorScheme.waveformUnplayed
     val description = stringResource(R.string.player_seek)
@@ -87,7 +89,7 @@ fun WaveformSeekBar(
         modifier = modifier
             .semantics {
                 contentDescription = description
-                progressBarRangeInfo = ProgressBarRangeInfo(shown, 0f..1f)
+                progressBarRangeInfo = ProgressBarRangeInfo(percent / PERCENT, 0f..1f)
             }
             .then(input)
             .drawWithCache {
@@ -98,10 +100,11 @@ fun WaveformSeekBar(
                 val heights = waveform?.let { WaveformBars.resample(it.peaks, count) } ?: FloatArray(count) { FLAT_BAR }
                 val radius = CornerRadius(widthPx / 2)
                 onDrawBehind {
+                    val drawnProgress = shown()
                     heights.forEachIndexed { i, height ->
                         val barHeight = (height * size.height).coerceAtLeast(widthPx)
                         drawRoundRect(
-                            color = if ((i + 0.5f) / count <= drawnProgress.value) played else unplayed,
+                            color = if ((i + 0.5f) / count <= drawnProgress) played else unplayed,
                             topLeft = Offset(i * step, (size.height - barHeight) / 2),
                             size = Size(widthPx, barHeight),
                             cornerRadius = radius,
@@ -115,3 +118,4 @@ fun WaveformSeekBar(
 private val barWidth = 3.dp
 private val barGap = 2.dp
 private const val FLAT_BAR = 0.2f
+private const val PERCENT = 100f

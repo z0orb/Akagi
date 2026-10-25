@@ -37,6 +37,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -78,8 +79,10 @@ fun PlayerBar(
     modifier: Modifier = Modifier,
 ) {
     var seeks by remember { mutableIntStateOf(0) }
-    val position by rememberPositionMs(state.isPlaying, track.trackId, seeks, actions.positionMs)
-    val progress = if (track.durationMs > 0) position.toFloat() / track.durationMs else 0f
+    // Read only by the time texts and the seekbar's drawing, so a tick doesn't recompose the bar (PF-03).
+    val position = rememberPositionMs(state.isPlaying, track.trackId, seeks, actions.positionMs)
+    val positionMs = { position.value }
+    val progress = { if (track.durationMs > 0) positionMs().toFloat() / track.durationMs else 0f }
     val seek: (Float) -> Unit = { fraction ->
         actions.onSeek((fraction * track.durationMs).toLong())
         seeks++
@@ -105,9 +108,9 @@ fun PlayerBar(
             .animateContentSize(),
     ) {
         if (expanded) {
-            ExpandedPlayer(state, track, actions, position, progress, seek, onCollapse = { onExpandedChange(false) })
+            ExpandedPlayer(state, track, actions, positionMs, progress, seek, onCollapse = { onExpandedChange(false) })
         } else {
-            MiniPlayer(state, track, actions, position, progress, onExpand = { onExpandedChange(true) })
+            MiniPlayer(state, track, actions, positionMs, progress, onExpand = { onExpandedChange(true) })
         }
     }
 }
@@ -117,8 +120,8 @@ private fun MiniPlayer(
     state: PlayerUiState,
     track: NowPlaying,
     actions: PlayerActions,
-    position: Long,
-    progress: Float,
+    position: () -> Long,
+    progress: () -> Float,
     onExpand: () -> Unit,
 ) {
     val expandLabel = stringResource(R.string.player_expand)
@@ -135,11 +138,7 @@ private fun MiniPlayer(
                     maxLines = 1,
                     modifier = Modifier.basicMarquee(),
                 )
-                Text(
-                    timesOf(position, track.durationMs),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                TimeText({ timesOf(position(), track.durationMs) })
             }
             PlayPauseButton(state.isPlaying, actions.onPlayPause)
             IconButton(onClick = actions.onNext) {
@@ -164,8 +163,8 @@ private fun ExpandedPlayer(
     state: PlayerUiState,
     track: NowPlaying,
     actions: PlayerActions,
-    position: Long,
-    progress: Float,
+    position: () -> Long,
+    progress: () -> Float,
     onSeek: (Float) -> Unit,
     onCollapse: () -> Unit,
 ) {
@@ -210,18 +209,13 @@ private fun ExpandedPlayer(
             modifier = Modifier.fillMaxWidth().height(48.dp),
         )
         Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-            val shownPosition = scrub?.let { (it * track.durationMs).toLong() } ?: position
-            Text(
-                DurationFormatter.format(shownPosition),
-                style = MaterialTheme.typography.labelSmall,
-                color = if (scrub !=
-                    null
-                ) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
+            val scrubbed = scrub?.let { (it * track.durationMs).toLong() }
+            val timeColor = if (scrubbed == null) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.primary
+            }
+            TimeText({ DurationFormatter.format(scrubbed ?: position()) }, color = timeColor)
             Spacer(Modifier.weight(1f))
             Text(
                 DurationFormatter.format(track.durationMs),
@@ -300,12 +294,18 @@ private fun playingFromLabel(from: PlayingFrom): String = when (from) {
     is PlayingFrom.Playlist -> from.name
 }
 
+/** Reads [text] itself, so a position tick recomposes only this label (PF-03). */
+@Composable
+private fun TimeText(text: () -> String, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
+    Text(text(), style = MaterialTheme.typography.labelSmall, color = color)
+}
+
 private fun timesOf(position: Long, duration: Long) =
     "${DurationFormatter.format(position)} / ${DurationFormatter.format(duration)}"
 
 /**
- * The playback position, re-read every 200 ms only while playing and while the app is visible (§7.13),
- * and once whenever the track, the play state or a seek changes it.
+ * The playback position, re-read on each whole second (when the time text changes) only while playing and while
+ * the app is visible (§7.13, PF-03), and once whenever the track, the play state or a seek changes it.
  */
 @Composable
 private fun rememberPositionMs(isPlaying: Boolean, trackId: Long, seeks: Int, read: () -> Long): State<Long> {
@@ -316,7 +316,7 @@ private fun rememberPositionMs(isPlaying: Boolean, trackId: Long, seeks: Int, re
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             position.longValue = currentRead()
             while (isPlaying) {
-                delay(TICK_MS)
+                delay(TICK_MS - position.longValue % TICK_MS)
                 position.longValue = currentRead()
             }
         }
@@ -326,7 +326,7 @@ private fun rememberPositionMs(isPlaying: Boolean, trackId: Long, seeks: Int, re
 
 private val swipeDistance = 48.dp
 private const val FLING_VELOCITY = 1_000f
-private const val TICK_MS = 200L
+private const val TICK_MS = 1_000L
 
 /** "USB DAC · 44.1 kHz · 24-bit", or "USB DAC" alone while Android picks the format (PLAN §7.19). */
 @Composable
