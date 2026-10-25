@@ -111,7 +111,13 @@ class DownloadViewModel @Inject constructor(
                 val info = infoCache.get(videoId)
                 info.liveError?.let { throw AppException(it) }
                 val choices = FormatRecommender.choicesFor(info)
-                val option = FormatRecommender.initialSelection(choices, remembered()) ?: return@launch
+                val option = FormatRecommender.initialSelection(choices, remembered())
+                if (option == null) {
+                    // Nothing to download: the sheet says why, instead of the spinner just stopping (B-13).
+                    sheet.value = SheetModel(videoId)
+                    load(videoId)
+                    return@launch
+                }
                 enqueue(info, option, replaceTrackId = null)
             } catch (e: CancellationException) {
                 throw e
@@ -207,10 +213,9 @@ class DownloadViewModel @Inject constructor(
                     Load.Failed(liveError)
                 } else {
                     val choices = FormatRecommender.choicesFor(info)
-                    sheet.update { model ->
-                        model?.takeIf { it.videoId == videoId }
-                            ?.copy(selected = FormatRecommender.initialSelection(choices, remembered()))
-                    }
+                    val selected = FormatRecommender.initialSelection(choices, remembered())
+                    // Another video's sheet is left as it is (C-01).
+                    sheet.update { model -> if (model?.videoId == videoId) model.copy(selected = selected) else model }
                     Load.Ready(info)
                 }
             } catch (e: CancellationException) {
