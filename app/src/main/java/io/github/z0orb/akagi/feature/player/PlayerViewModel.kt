@@ -84,7 +84,7 @@ class PlayerViewModel @Inject constructor(
     fun onWebAudioUnplugged() = headphones.muteSpeakerOnceRouteSettles()
 
     /** Polled by the seekbar's ticker while it is visible and playing. */
-    fun positionMs(): Long = player.positionMs()
+    fun positionMs(): Long? = player.positionMs()
 
     private companion object {
         const val STOP_TIMEOUT_MS = 5_000L

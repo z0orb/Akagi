@@ -122,8 +122,8 @@ class PlayerConnection @Inject constructor(@ApplicationContext private val conte
         }
     }
 
-    /** Read on demand by the seekbar's ticker rather than pushed through [state]. */
-    fun positionMs(): Long = controller.value?.currentPosition ?: 0L
+    /** Read on demand by the seekbar's ticker rather than pushed through [state]; null until the controller connects. */
+    fun positionMs(): Long? = controller.value?.currentPosition
 
     // A bind that fails or never answers used to leave the tap waiting for ever (B-11). One fresh attempt is made,
     // since a stale pending future would otherwise block every later connect().

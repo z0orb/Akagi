@@ -62,7 +62,7 @@ class PlayerActions(
     val onSeek: (positionMs: Long) -> Unit,
     val onToggleShuffle: () -> Unit,
     val onCycleRepeat: () -> Unit,
-    val positionMs: () -> Long,
+    val positionMs: () -> Long?,
 )
 
 /**
@@ -308,16 +308,24 @@ private fun timesOf(position: Long, duration: Long) =
  * the app is visible (§7.13, PF-03), and once whenever the track, the play state or a seek changes it.
  */
 @Composable
-private fun rememberPositionMs(isPlaying: Boolean, trackId: Long, seeks: Int, read: () -> Long): State<Long> {
+private fun rememberPositionMs(isPlaying: Boolean, trackId: Long, seeks: Int, read: () -> Long?): State<Long> {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val position = remember { mutableLongStateOf(read()) }
+    val position = remember { mutableLongStateOf(read() ?: 0L) }
     val currentRead by rememberUpdatedState(read)
     LaunchedEffect(isPlaying, trackId, seeks, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            position.longValue = currentRead()
+            // Back in the foreground the controller reconnects asynchronously. Reading before that gave 0:00, which
+            // stayed while paused; the last position is kept until the real one can be read.
+            var current = currentRead()
+            var polls = 0
+            while (current == null && polls++ < RECONNECT_POLLS) {
+                delay(RECONNECT_POLL_MS)
+                current = currentRead()
+            }
+            current?.let { position.longValue = it }
             while (isPlaying) {
                 delay(TICK_MS - position.longValue % TICK_MS)
-                position.longValue = currentRead()
+                currentRead()?.let { position.longValue = it }
             }
         }
     }
@@ -327,6 +335,10 @@ private fun rememberPositionMs(isPlaying: Boolean, trackId: Long, seeks: Int, re
 private val swipeDistance = 48.dp
 private const val FLING_VELOCITY = 1_000f
 private const val TICK_MS = 1_000L
+private const val RECONNECT_POLL_MS = 50L
+
+// The connection's own timeout (5 s); a bind that fails leaves the last position shown.
+private const val RECONNECT_POLLS = 100
 
 /** "USB DAC · 44.1 kHz · 24-bit", or "USB DAC" alone while Android picks the format (PLAN §7.19). */
 @Composable
