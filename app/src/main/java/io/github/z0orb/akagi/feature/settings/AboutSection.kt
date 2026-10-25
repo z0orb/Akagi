@@ -1,5 +1,6 @@
 package io.github.z0orb.akagi.feature.settings
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,7 +16,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -50,7 +53,7 @@ private val components = listOf(
 /** Version, licence and source (P7.5); the GPL asks that users can find the source. */
 @Composable
 internal fun ColumnScope.AboutSection(onShowLicences: () -> Unit) {
-    val uriHandler = LocalUriHandler.current
+    val openLink = rememberLinkOpener()
     SectionTitle(stringResource(R.string.settings_section_about))
     LabelValue(stringResource(R.string.settings_version), BuildConfig.VERSION_NAME)
     Text(
@@ -59,7 +62,7 @@ internal fun ColumnScope.AboutSection(onShowLicences: () -> Unit) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Column {
-        TextButton(onClick = { uriHandler.openUri(SOURCE_URL) }) { Text(stringResource(R.string.settings_source)) }
+        TextButton(onClick = { openLink(SOURCE_URL) }) { Text(stringResource(R.string.settings_source)) }
         TextButton(onClick = onShowLicences) { Text(stringResource(R.string.settings_licences)) }
     }
 }
@@ -67,7 +70,7 @@ internal fun ColumnScope.AboutSection(onShowLicences: () -> Unit) {
 /** The bundled components and their licences; each row opens the licence text in the browser. */
 @Composable
 internal fun LicencesPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
-    val uriHandler = LocalUriHandler.current
+    val openLink = rememberLinkOpener()
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         OverlayTopBar(title = stringResource(R.string.settings_licences), onBack = onBack)
         LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
@@ -76,7 +79,7 @@ internal fun LicencesPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(role = Role.Button) { uriHandler.openUri(component.url) }
+                        .clickable(role = Role.Button) { openLink(component.url) }
                         .padding(horizontal = 20.dp, vertical = 12.dp),
                 ) {
                     Text(component.name, style = MaterialTheme.typography.bodyLarge)
@@ -86,6 +89,22 @@ internal fun LicencesPage(onBack: () -> Unit, modifier: Modifier = Modifier) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+        }
+    }
+}
+
+/** Opens a link in the browser, or says so when no app can (all browsers disabled) instead of crashing (B-17). */
+@Composable
+private fun rememberLinkOpener(): (String) -> Unit {
+    val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+    return remember(uriHandler, context) {
+        { url ->
+            try {
+                uriHandler.openUri(url)
+            } catch (_: IllegalArgumentException) {
+                Toast.makeText(context, R.string.link_no_app, Toast.LENGTH_SHORT).show()
             }
         }
     }
