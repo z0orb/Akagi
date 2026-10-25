@@ -87,3 +87,10 @@ sealed interface AppError {
 /** Carries an [AppError] through code that fails by throwing (engines, storage). */
 class AppException(val error: AppError, message: String? = null, cause: Throwable? = null) :
     Exception(message ?: error.toString(), cause)
+
+/**
+ * The error to show for a failure caught at the edge of an intent coroutine. Anything that isn't an
+ * [AppException] is a bug or an I/O surprise; it must reach the UI as [AppError.Unknown], not crash the app.
+ * Callers rethrow [kotlinx.coroutines.CancellationException] first.
+ */
+fun Exception.toAppError(): AppError = (this as? AppException)?.error ?: AppError.Unknown(message ?: javaClass.name)

@@ -2,6 +2,8 @@ package io.github.z0orb.akagi.ytdlp
 
 import io.github.z0orb.akagi.core.common.AppError
 import io.github.z0orb.akagi.core.common.AppException
+import io.github.z0orb.akagi.core.common.toAppError
+import java.io.IOException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -19,6 +21,7 @@ class VideoInfoCacheTest {
     private val fetched = mutableListOf<String>()
     private var gate: CompletableDeferred<Unit>? = null
     private var failNext = false
+    private var failure: Exception = AppException(AppError.Network)
 
     private fun info(id: String) = VideoInfo(id, "t", 1.0, liveError = null, formats = emptyList())
 
@@ -28,7 +31,7 @@ class VideoInfoCacheTest {
             gate?.await()
             if (failNext) {
                 failNext = false
-                throw AppException(AppError.Network)
+                throw failure
             }
             info(id)
         },
@@ -108,5 +111,16 @@ class VideoInfoCacheTest {
         assertTrue(runCatching { cache.get("a") }.exceptionOrNull() is AppException)
         assertEquals(info("a"), cache.get("a"))
         assertEquals(listOf("a", "a"), fetched)
+    }
+
+    @Test
+    fun `a non-AppException failure reaches the caller, which maps it for the sheet`() = runTest {
+        val cache = cache()
+        failNext = true
+        failure = IOException("No space left on device")
+        val error = runCatching { cache.get("a") }.exceptionOrNull()
+        assertTrue(error is IOException)
+        assertEquals(AppError.Unknown("No space left on device"), (error as Exception).toAppError())
+        assertEquals(info("a"), cache.get("a"))
     }
 }

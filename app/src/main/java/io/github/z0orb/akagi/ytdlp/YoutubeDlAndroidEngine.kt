@@ -14,6 +14,7 @@ import io.github.z0orb.akagi.core.common.AudioCodec
 import io.github.z0orb.akagi.core.common.DispatcherProvider
 import io.github.z0orb.akagi.core.di.ApplicationScope
 import java.io.File
+import java.io.IOException
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -82,8 +83,15 @@ class YoutubeDlAndroidEngine @Inject constructor(
         } catch (e: org.json.JSONException) {
             throw AppException(AppError.Unknown("Unreadable video info"), e.message, e)
         }
-        // Kept for the download, which can then skip extracting the page and the JS challenge again.
-        withContext(dispatchers.io) { infoFile(videoId).apply { parentFile?.mkdirs() }.writeText(response.out) }
+        // Kept for the download, which can then skip extracting the page and the JS challenge again. Only a
+        // shortcut, so a full disk costs the download a second extraction rather than failing the fetch.
+        withContext(dispatchers.io) {
+            try {
+                infoFile(videoId).apply { parentFile?.mkdirs() }.writeText(response.out)
+            } catch (e: IOException) {
+                Log.w(TAG, "Couldn't keep the info for $videoId", e)
+            }
+        }
         info
     }
 
@@ -205,7 +213,10 @@ class YoutubeDlAndroidEngine @Inject constructor(
     private suspend fun awaitReady() {
         try {
             ready.await()
-        } catch (e: YoutubeDLException) {
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Not only YoutubeDLException: extracting Python or the plugins can fail with any I/O error.
             throw AppException(AppError.Unknown("yt-dlp failed to start: ${e.message}"), e.message, e)
         }
     }

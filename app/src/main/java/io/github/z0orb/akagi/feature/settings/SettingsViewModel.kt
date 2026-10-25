@@ -9,9 +9,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.z0orb.akagi.account.AccountRepository
 import io.github.z0orb.akagi.account.CookieImportResult
 import io.github.z0orb.akagi.core.common.AppError
-import io.github.z0orb.akagi.core.common.AppException
 import io.github.z0orb.akagi.core.common.AudioCodec
 import io.github.z0orb.akagi.core.common.SignInState
+import io.github.z0orb.akagi.core.common.toAppError
 import io.github.z0orb.akagi.data.db.LibrarySize
 import io.github.z0orb.akagi.data.library.LibraryRepository
 import io.github.z0orb.akagi.data.prefs.AutoUpdate
@@ -27,6 +27,7 @@ import io.github.z0orb.akagi.ytdlp.UpdateResult
 import io.github.z0orb.akagi.ytdlp.YtDlpEngine
 import io.github.z0orb.akagi.ytdlp.YtDlpUpdater
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -129,8 +130,10 @@ class SettingsViewModel @Inject constructor(
                     UpdateResult.AlreadyUpToDate -> UpdateStatus.UpToDate
                     is UpdateResult.Updated -> UpdateStatus.Updated(result.version)
                 }
-            } catch (e: AppException) {
-                UpdateStatus.Failed(e.error)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                UpdateStatus.Failed(e.toAppError())
             }
             version.value = runCatching { engine.version() }.getOrNull()
         }

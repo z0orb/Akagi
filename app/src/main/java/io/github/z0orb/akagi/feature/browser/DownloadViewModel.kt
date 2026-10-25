@@ -8,6 +8,7 @@ import io.github.z0orb.akagi.account.AccountRepository
 import io.github.z0orb.akagi.core.common.AppError
 import io.github.z0orb.akagi.core.common.AppException
 import io.github.z0orb.akagi.core.common.AudioCodec
+import io.github.z0orb.akagi.core.common.toAppError
 import io.github.z0orb.akagi.data.library.LibraryRepository
 import io.github.z0orb.akagi.data.prefs.SettingsRepository
 import io.github.z0orb.akagi.download.DownloadQueue
@@ -23,6 +24,7 @@ import io.github.z0orb.akagi.ytdlp.VideoInfo
 import io.github.z0orb.akagi.ytdlp.VideoInfoCache
 import io.github.z0orb.akagi.ytdlp.YtDlpUpdater
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -111,8 +113,10 @@ class DownloadViewModel @Inject constructor(
                 val choices = FormatRecommender.choicesFor(info)
                 val option = FormatRecommender.initialSelection(choices, remembered()) ?: return@launch
                 enqueue(info, option, replaceTrackId = null)
-            } catch (e: AppException) {
-                sheet.value = SheetModel(videoId, load = Load.Failed(e.error))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                sheet.value = SheetModel(videoId, load = Load.Failed(e.toAppError()))
             } finally {
                 quickFetching.update { it - videoId }
             }
@@ -176,8 +180,10 @@ class DownloadViewModel @Inject constructor(
             try {
                 updater.updateNow()
                 load(model.videoId)
-            } catch (e: AppException) {
-                setLoad(model.videoId, Load.Failed(e.error))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                setLoad(model.videoId, Load.Failed(e.toAppError()))
             }
         }
     }
@@ -203,8 +209,10 @@ class DownloadViewModel @Inject constructor(
                     }
                     Load.Ready(info)
                 }
-            } catch (e: AppException) {
-                Load.Failed(e.error)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Load.Failed(e.toAppError())
             }
             setLoad(videoId, load)
         }

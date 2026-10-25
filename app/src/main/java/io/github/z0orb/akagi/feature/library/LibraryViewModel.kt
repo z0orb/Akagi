@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.z0orb.akagi.R
 import io.github.z0orb.akagi.account.AccountRepository
-import io.github.z0orb.akagi.core.common.AppException
 import io.github.z0orb.akagi.data.db.TrackEntity
 import io.github.z0orb.akagi.data.library.LibraryRepository
 import io.github.z0orb.akagi.data.library.PlaylistName
@@ -17,6 +16,7 @@ import io.github.z0orb.akagi.playback.PlayQueue
 import io.github.z0orb.akagi.playback.PlayerConnection
 import io.github.z0orb.akagi.playback.QueueFactory
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -216,7 +216,10 @@ class LibraryViewModel @Inject constructor(
                         emit { LibraryEvent.ConfirmFileDeletion(it, result.request) }
                     }
                 }
-            } catch (_: AppException) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // MediaStore can also throw SecurityException or IllegalStateException; none of them may crash.
                 emit { LibraryEvent.Toast(it, R.string.error_storage) }
             }
         }

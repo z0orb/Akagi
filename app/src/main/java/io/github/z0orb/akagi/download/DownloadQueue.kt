@@ -3,6 +3,7 @@ package io.github.z0orb.akagi.download
 import io.github.z0orb.akagi.core.common.AppError
 import io.github.z0orb.akagi.core.common.AppException
 import io.github.z0orb.akagi.core.common.Clock
+import io.github.z0orb.akagi.core.common.toAppError
 import io.github.z0orb.akagi.data.db.DownloadState
 import io.github.z0orb.akagi.ytdlp.DownloadProgress
 import kotlinx.coroutines.CancellationException
@@ -140,10 +141,8 @@ class DownloadQueue(
             _completed.tryEmit(CompletedDownload(id, task.request.videoId, task.request.title))
         } catch (e: CancellationException) {
             throw e
-        } catch (e: AppException) {
-            fail(id, e.error)
         } catch (e: Exception) {
-            fail(id, AppError.Unknown(e.message ?: e.javaClass.name))
+            fail(id, e.toAppError())
         } finally {
             val self = currentCoroutineContext()[Job]
             // NonCancellable: a cancelled coroutine can't otherwise wait for the lock.

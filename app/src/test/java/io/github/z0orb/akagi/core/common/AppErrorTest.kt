@@ -35,4 +35,11 @@ class AppErrorTest {
         assertEquals("0.0 MB", SizeFormatter.megabytes(0, Locale.US))
         assertEquals("3,4 MB", SizeFormatter.megabytes(3_449_447, Locale.GERMANY))
     }
+
+    @Test
+    fun `an AppException keeps its error and anything else becomes Unknown`() {
+        assertEquals(AppError.Storage, AppException(AppError.Storage).toAppError())
+        assertEquals(AppError.Unknown("disk full"), java.io.IOException("disk full").toAppError())
+        assertEquals(AppError.Unknown("java.lang.IllegalStateException"), IllegalStateException().toAppError())
+    }
 }
