@@ -44,8 +44,8 @@ class LibraryRepository @Inject constructor(
 
     /** Flags tracks whose file was deleted or moved away outside Akagi, and clears the flag when it is back. */
     suspend fun reconcileMissingFiles() {
-        val present = audioStore.presentMediaIds() ?: return
         val files = trackDao.getAll().map { TrackFile(it.id, it.contentUri, it.missing) }
+        val present = audioStore.presentMediaIds(files.mapNotNull(MissingFiles::mediaIdOf)) ?: return
         MissingFiles.changes(files, present).forEach { (id, missing) -> trackDao.setMissing(id, missing) }
     }
 }

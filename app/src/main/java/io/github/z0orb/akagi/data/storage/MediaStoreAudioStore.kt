@@ -61,10 +61,17 @@ class MediaStoreAudioStore @Inject constructor(
         }
     }
 
-    override suspend fun presentMediaIds(): Set<Long>? = withContext(dispatchers.io) {
+    // Only Akagi's own IDs: listing the whole volume grew with the user's entire music collection (PF-05).
+    override suspend fun presentMediaIds(mediaIds: Collection<Long>): Set<Long>? = withContext(dispatchers.io) {
         runCatching {
-            resolver.query(collection, arrayOf(MediaStore.Audio.Media._ID), null, null, null)?.use { cursor ->
-                buildSet { while (cursor.moveToNext()) add(cursor.getLong(0)) }
+            buildSet {
+                mediaIds.chunked(QUERY_CHUNK).forEach { chunk ->
+                    val selection = "${MediaStore.Audio.Media._ID} IN (${chunk.joinToString(",") { "?" }})"
+                    val args = chunk.map(Long::toString).toTypedArray()
+                    val cursor = resolver.query(collection, arrayOf(MediaStore.Audio.Media._ID), selection, args, null)
+                        ?: return@runCatching null
+                    cursor.use { while (it.moveToNext()) add(it.getLong(0)) }
+                }
             }
         }.getOrNull()
     }
@@ -127,5 +134,8 @@ class MediaStoreAudioStore @Inject constructor(
 
     private companion object {
         const val RELATIVE_PATH = "Music/Akagi"
+
+        // Under SQLite's 999 bound-argument limit on older versions.
+        const val QUERY_CHUNK = 500
     }
 }

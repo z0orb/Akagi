@@ -15,8 +15,8 @@ interface AudioStore {
     /** Deletes the file; a file that is already gone counts as deleted. */
     suspend fun delete(contentUri: String): AudioDeletion
 
-    /** MediaStore IDs of the audio files Akagi can still see, or null when MediaStore can't be queried. */
-    suspend fun presentMediaIds(): Set<Long>?
+    /** Which of [mediaIds] Akagi can still see in MediaStore, or null when MediaStore can't be queried. */
+    suspend fun presentMediaIds(mediaIds: Collection<Long>): Set<Long>?
 }
 
 data class SavedAudio(val contentUri: String, val sizeBytes: Long)
