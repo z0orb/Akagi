@@ -19,6 +19,9 @@ interface TrackDao {
     @Query("SELECT COUNT(*) AS count, COALESCE(SUM(sizeBytes), 0) AS bytes FROM tracks")
     fun observeLibrarySize(): Flow<LibrarySize>
 
+    @Query("SELECT * FROM tracks WHERE id = :id")
+    suspend fun findById(id: Long): TrackEntity?
+
     @Query("SELECT * FROM tracks WHERE videoId = :videoId")
     suspend fun findByVideoId(videoId: String): TrackEntity?
 

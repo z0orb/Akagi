@@ -44,9 +44,6 @@ class LibraryViewModel @Inject constructor(
     private val event = MutableStateFlow<LibraryEvent?>(null)
     private var nextEventId = 0L
 
-    // The track whose file deletion waits for the system dialog; the row goes once the user agrees.
-    private var awaitingConsent: TrackEntity? = null
-
     private val openPlaylist = savedState.getStateFlow<Long?>(OPEN_PLAYLIST_KEY, null).flatMapLatest { id ->
         if (id == null) {
             flowOf(null)
@@ -214,7 +211,9 @@ class LibraryViewModel @Inject constructor(
                     AudioDeletion.Deleted -> player.remove(track.id)
 
                     is AudioDeletion.NeedsConsent -> {
-                        awaitingConsent = track
+                        // The track whose file deletion waits for the system dialog; its row goes once the user agrees.
+                        // Saved state, not a field: the process can die while the dialog is up (B-12).
+                        savedState[AWAITING_CONSENT_KEY] = track.id
                         emit { LibraryEvent.ConfirmFileDeletion(it, result.request) }
                     }
                 }
@@ -228,11 +227,10 @@ class LibraryViewModel @Inject constructor(
     }
 
     fun onDeleteConsentResult(granted: Boolean) {
-        val track = awaitingConsent ?: return
-        awaitingConsent = null
+        val trackId = savedState.remove<Long>(AWAITING_CONSENT_KEY) ?: return
         if (granted) {
-            player.remove(track.id)
-            viewModelScope.launch { library.forget(track) }
+            player.remove(trackId)
+            viewModelScope.launch { library.track(trackId)?.let { library.forget(it) } }
         }
     }
 
@@ -257,6 +255,7 @@ class LibraryViewModel @Inject constructor(
     private companion object {
         const val STOP_TIMEOUT_MS = 5_000L
         const val OPEN_PLAYLIST_KEY = "openPlaylist"
+        const val AWAITING_CONSENT_KEY = "awaitingDeleteConsent"
         const val TAB_KEY = "tab"
     }
 }

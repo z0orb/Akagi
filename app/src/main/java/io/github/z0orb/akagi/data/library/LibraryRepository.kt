@@ -34,6 +34,8 @@ class LibraryRepository @Inject constructor(
     suspend fun delete(track: TrackEntity): AudioDeletion =
         audioStore.delete(track.contentUri).also { if (it == AudioDeletion.Deleted) forget(track) }
 
+    suspend fun track(id: Long): TrackEntity? = trackDao.findById(id)
+
     /** Removes the track from the library once its file is gone. */
     suspend fun forget(track: TrackEntity) {
         trackDao.delete(track.id)
