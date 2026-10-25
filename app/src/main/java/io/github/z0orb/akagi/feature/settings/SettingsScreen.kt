@@ -66,6 +66,8 @@ fun SettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val currentOnSignedOut by rememberUpdatedState(onSignedOut)
+    // Keyed on nothing: Settings leaves the composition when closed, so this runs once per opening.
+    LaunchedEffect(Unit) { viewModel.onShown() }
     LaunchedEffect(state.event) {
         val event = state.event ?: return@LaunchedEffect
         when (event) {

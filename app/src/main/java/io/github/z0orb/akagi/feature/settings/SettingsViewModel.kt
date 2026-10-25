@@ -115,7 +115,11 @@ class SettingsViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), SettingsUiState())
 
-    init {
+    /**
+     * Called each time the overlay opens. This ViewModel lives as long as the activity, so values read once in
+     * `init` went stale after downloads or the weekly yt-dlp update (B-09).
+     */
+    fun onShown() {
         account.refresh()
         viewModelScope.launch { version.value = runCatching { engine.version() }.getOrNull() }
         viewModelScope.launch { appStorage.value = storageUsage.measure() }
