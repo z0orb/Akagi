@@ -89,10 +89,14 @@ data class DownloadTaskEntity(
     val codec: AudioCodec,
     val bitrateKbps: Int,
     val state: DownloadState,
+    // Unused (C-02): live progress is kept in memory by DownloadQueue. Left in the schema to avoid a migration.
     @ColumnInfo(defaultValue = "0") val progress: Float = 0f,
     val errorType: String? = null,
     val errorMessage: String? = null,
-    /** Set when this download replaces an existing track's file (the "Download again" flow). */
+    /**
+     * Set when this download replaces an existing track's file (the "Download again" flow). Informational only
+     * (C-02): the pipeline finds the track to replace by video id, which also covers a replace queued twice.
+     */
     val replaceTrackId: Long? = null,
     val createdAt: Long,
     val updatedAt: Long,

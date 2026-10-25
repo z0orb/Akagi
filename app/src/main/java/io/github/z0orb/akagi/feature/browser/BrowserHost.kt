@@ -2,12 +2,9 @@ package io.github.z0orb.akagi.feature.browser
 
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.graphics.Bitmap
-import android.media.AudioManager
 import android.net.Uri
 import android.view.View
 import android.webkit.CookieManager
@@ -28,9 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import androidx.lifecycle.compose.LifecycleStartEffect
+import io.github.z0orb.akagi.playback.registerNoisyReceiver
 
 /**
  * Hosts the app's one long-lived YouTube WebView (PLAN §7.1). [startUrl] is only read when the WebView is
@@ -188,18 +185,4 @@ private class FullscreenChromeClient(private val controller: BrowserController) 
 
     // The default poster is a grey play glyph that flashes before every video.
     override fun getDefaultVideoPoster(): Bitmap = createBitmap(1, 1)
-}
-
-/** Headphones are about to drop and the output falls back to the speaker. */
-private fun registerNoisyReceiver(context: Context, onNoisy: () -> Unit): BroadcastReceiver {
-    val receiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) = onNoisy()
-    }
-    ContextCompat.registerReceiver(
-        context,
-        receiver,
-        IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
-        ContextCompat.RECEIVER_NOT_EXPORTED,
-    )
-    return receiver
 }

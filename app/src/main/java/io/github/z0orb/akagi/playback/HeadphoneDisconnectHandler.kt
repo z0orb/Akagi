@@ -50,20 +50,6 @@ class HeadphoneDisconnectHandler @Inject constructor(
         }
     }
 
-    /** Registers [onNoisy] for "audio becoming noisy" (the output is about to fall back to the speaker). */
-    fun register(context: Context, onNoisy: () -> Unit): BroadcastReceiver {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) = onNoisy()
-        }
-        ContextCompat.registerReceiver(
-            context,
-            receiver,
-            IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
-            ContextCompat.RECEIVER_NOT_EXPORTED,
-        )
-        return receiver
-    }
-
     private companion object {
         const val TAG = "HeadphoneDisconnect"
 
@@ -71,4 +57,18 @@ class HeadphoneDisconnectHandler @Inject constructor(
         const val SETTLE_TIMEOUT_MS = 5_000L
         const val POLL_MS = 100L
     }
+}
+
+/** Registers [onNoisy] for "audio becoming noisy" (the output is about to fall back to the speaker). */
+fun registerNoisyReceiver(context: Context, onNoisy: () -> Unit): BroadcastReceiver {
+    val receiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = onNoisy()
+    }
+    ContextCompat.registerReceiver(
+        context,
+        receiver,
+        IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+        ContextCompat.RECEIVER_NOT_EXPORTED,
+    )
+    return receiver
 }

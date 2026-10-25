@@ -95,7 +95,7 @@ class PlaybackService : MediaSessionService() {
             .setCallback(MinimalSystemControls)
             .build()
         followUsbDac(player, dac)
-        noisyReceiver = headphones.register(this) {
+        noisyReceiver = registerNoisyReceiver(this) {
             if (player.playWhenReady) {
                 player.pause()
                 headphones.muteSpeakerOnceRouteSettles()
