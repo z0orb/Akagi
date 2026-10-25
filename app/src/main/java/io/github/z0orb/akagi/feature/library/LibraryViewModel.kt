@@ -15,6 +15,7 @@ import io.github.z0orb.akagi.download.DownloadQueue
 import io.github.z0orb.akagi.playback.PlayQueue
 import io.github.z0orb.akagi.playback.PlayerConnection
 import io.github.z0orb.akagi.playback.QueueFactory
+import io.github.z0orb.akagi.ytdlp.DownloadProgress
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -55,15 +56,21 @@ class LibraryViewModel @Inject constructor(
     }
 
     val uiState: StateFlow<LibraryUiState> = combine(
-        combine(queue.tasks, queue.progress, library.observeTracks(), ::Triple),
+        combine(queue.tasks, library.observeTracks(), ::Pair),
         playlists.observeSummaries(),
         openPlaylist,
         // Saved here rather than in the panel, whose content leaves composition while it is closed.
         savedState.getStateFlow(TAB_KEY, LibraryTab.DOWNLOADS),
         combine(dialog, event, account.state, ::Triple),
-    ) { (tasks, progress, tracks), summaries, detail, tab, (dialog, event, signIn) ->
-        LibraryUiState(tasks, progress, tracks, summaries, detail, tab, dialog, event, signIn, loaded = true)
+    ) { (tasks, tracks), summaries, detail, tab, (dialog, event, signIn) ->
+        LibraryUiState(tasks, tracks, summaries, detail, tab, dialog, event, signIn, loaded = true)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), LibraryUiState())
+
+    /**
+     * Running tasks' progress, apart from [uiState]: it ticks up to 12 times a second, and only the task rows' status
+     * lines read it, so the ticks don't rebuild the panel (PF-01).
+     */
+    val progress: StateFlow<Map<Long, DownloadProgress>> = queue.progress
 
     fun onSelectTab(tab: LibraryTab) {
         savedState[TAB_KEY] = tab

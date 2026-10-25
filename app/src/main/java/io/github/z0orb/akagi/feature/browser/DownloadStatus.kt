@@ -8,6 +8,7 @@ import io.github.z0orb.akagi.data.db.DownloadState
 import io.github.z0orb.akagi.data.db.TrackEntity
 import io.github.z0orb.akagi.download.DownloadTask
 import io.github.z0orb.akagi.ytdlp.DownloadProgress
+import io.github.z0orb.akagi.ytdlp.FormatChoices
 import io.github.z0orb.akagi.ytdlp.FormatOption
 import io.github.z0orb.akagi.ytdlp.FormatRecommender
 import io.github.z0orb.akagi.ytdlp.VideoInfo
@@ -20,7 +21,8 @@ internal sealed interface Load {
 
     data object UpdatingYtDlp : Load
 
-    data class Ready(val info: VideoInfo) : Load
+    /** [choices] are worked out once here, not on every progress tick or option tap (PF-01). */
+    data class Ready(val info: VideoInfo, val choices: FormatChoices = FormatRecommender.choicesFor(info)) : Load
 
     data class Failed(val error: AppError) : Load
 }
@@ -72,7 +74,7 @@ internal fun sheetContentOf(
             is Load.Failed -> SheetContent.Failed(load.error, load.error.signInAdvice(signIn))
 
             is Load.Ready -> {
-                val choices = FormatRecommender.choicesFor(load.info)
+                val choices = load.choices
                 val selected = model.selected ?: choices.recommended
                 selected?.let { SheetContent.Choose(choices, it) } ?: SheetContent.Failed(AppError.Unavailable)
             }

@@ -48,15 +48,18 @@ import androidx.compose.ui.unit.sp
 import io.github.z0orb.akagi.R
 import io.github.z0orb.akagi.core.designsystem.theme.AkagiMotion
 import io.github.z0orb.akagi.data.db.TrackEntity
+import io.github.z0orb.akagi.ytdlp.DownloadProgress
 import kotlinx.coroutines.launch
 
 /**
  * Content of the side panel: Downloads | Playlists tabs, or an open playlist as a sub-page (PLAN §7.12). It stays
- * composed while the panel is closed, so [open] keeps back for the rest of the screen then.
+ * composed while the panel is closed, so [open] keeps back for the rest of the screen then. [progress] reads a
+ * running task's progress; only the task rows call it.
  */
 @Composable
 fun LibraryPanel(
     state: LibraryUiState,
+    progress: (taskId: Long) -> DownloadProgress?,
     actions: LibraryActions,
     open: Boolean,
     narrowWidth: Dp,
@@ -82,7 +85,7 @@ fun LibraryPanel(
         if (shown != null) {
             PlaylistDetailPage(shown, actions, guard)
         } else {
-            TabPager(state, actions, guard, narrowWidth)
+            TabPager(state, progress, actions, guard, narrowWidth)
         }
     }
     state.dialog?.let { LibraryDialogHost(it, state.playlists, actions) }
@@ -92,6 +95,7 @@ fun LibraryPanel(
 @Composable
 private fun TabPager(
     state: LibraryUiState,
+    progress: (taskId: Long) -> DownloadProgress?,
     actions: LibraryActions,
     guard: ScrollGuard,
     narrowWidth: Dp,
@@ -112,7 +116,7 @@ private fun TabPager(
             modifier = Modifier.fillMaxSize(),
         ) { page ->
             when (LibraryTab.entries[page]) {
-                LibraryTab.DOWNLOADS -> DownloadsTab(state, actions, guard)
+                LibraryTab.DOWNLOADS -> DownloadsTab(state, progress, actions, guard)
                 LibraryTab.PLAYLISTS -> if (state.loaded) PlaylistsTab(state.playlists, actions, guard)
             }
         }
@@ -201,7 +205,12 @@ class LibraryActions(
 )
 
 @Composable
-private fun DownloadsTab(state: LibraryUiState, actions: LibraryActions, guard: ScrollGuard) {
+private fun DownloadsTab(
+    state: LibraryUiState,
+    progress: (taskId: Long) -> DownloadProgress?,
+    actions: LibraryActions,
+    guard: ScrollGuard,
+) {
     if (!state.loaded) return
     if (state.tasks.isEmpty() && state.tracks.isEmpty()) {
         EmptyState(stringResource(R.string.downloads_empty))
@@ -216,7 +225,7 @@ private fun DownloadsTab(state: LibraryUiState, actions: LibraryActions, guard: 
                 SectionHeader(stringResource(R.string.downloads_active))
             }
             items(state.tasks, key = { "task-${it.id}" }, contentType = { "task" }) { task ->
-                TaskRow(task, state.progress[task.id], state.signIn, actions.onCancelTask, actions.onRetryTask)
+                TaskRow(task, { progress(task.id) }, state.signIn, actions.onCancelTask, actions.onRetryTask)
             }
             if (state.tracks.isNotEmpty()) {
                 item(key = "library-header", contentType = "header") {

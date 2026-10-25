@@ -75,7 +75,7 @@ internal fun EmptyState(text: String, modifier: Modifier = Modifier) {
 @Composable
 internal fun TaskRow(
     task: DownloadTask,
-    progress: DownloadProgress?,
+    progress: () -> DownloadProgress?,
     signIn: SignInState,
     onCancel: (Long) -> Unit,
     onRetry: (Long) -> Unit,
@@ -106,8 +106,9 @@ internal fun TaskRow(
 }
 
 @Composable
-private fun TaskStatus(task: DownloadTask, progress: DownloadProgress?, signIn: SignInState) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { TaskStatusLines(task, progress, signIn) }
+private fun TaskStatus(task: DownloadTask, progress: () -> DownloadProgress?, signIn: SignInState) {
+    // Read here, so a tick recomposes only the status lines, not the row or the list (PF-01).
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { TaskStatusLines(task, progress(), signIn) }
 }
 
 @Composable

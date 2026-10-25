@@ -7,12 +7,10 @@ import io.github.z0orb.akagi.core.common.SignInState
 import io.github.z0orb.akagi.data.db.PlaylistSummary
 import io.github.z0orb.akagi.data.db.TrackEntity
 import io.github.z0orb.akagi.download.DownloadTask
-import io.github.z0orb.akagi.ytdlp.DownloadProgress
 
 @Immutable
 data class LibraryUiState(
     val tasks: List<DownloadTask> = emptyList(),
-    val progress: Map<Long, DownloadProgress> = emptyMap(),
     val tracks: List<TrackEntity> = emptyList(),
     val playlists: List<PlaylistSummary> = emptyList(),
     /** The playlist shown as a sub-page inside the panel, if any. */

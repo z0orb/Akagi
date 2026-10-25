@@ -91,6 +91,8 @@ fun MainScreen(
     val mainState by mainViewModel.uiState.collectAsStateWithLifecycle()
     val libraryState by libraryViewModel.uiState.collectAsStateWithLifecycle()
     val playerState by playerViewModel.uiState.collectAsStateWithLifecycle()
+    // Not read here: only the task rows read it, so progress ticks don't recompose this screen (PF-01).
+    val downloadProgress = libraryViewModel.progress.collectAsStateWithLifecycle()
     var playerExpanded by rememberSaveable { mutableStateOf(false) }
     val playerActions = remember(playerViewModel) {
         PlayerActions(
@@ -243,6 +245,7 @@ fun MainScreen(
                 SidePanel(state = sidePanel, handleVisible = fullscreenView == null) { narrowWidth ->
                     LibraryPanel(
                         state = libraryState,
+                        progress = { downloadProgress.value[it] },
                         actions = libraryActions,
                         open = sidePanel.isOpen,
                         narrowWidth = narrowWidth,

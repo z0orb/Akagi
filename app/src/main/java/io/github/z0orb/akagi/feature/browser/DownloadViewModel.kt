@@ -13,8 +13,10 @@ import io.github.z0orb.akagi.data.library.LibraryRepository
 import io.github.z0orb.akagi.data.prefs.SettingsRepository
 import io.github.z0orb.akagi.download.DownloadQueue
 import io.github.z0orb.akagi.download.DownloadRequest
+import io.github.z0orb.akagi.download.DownloadTask
 import io.github.z0orb.akagi.playback.PlayerConnection
 import io.github.z0orb.akagi.playback.QueueFactory
+import io.github.z0orb.akagi.ytdlp.DownloadProgress
 import io.github.z0orb.akagi.ytdlp.FormatChoices
 import io.github.z0orb.akagi.ytdlp.FormatOption
 import io.github.z0orb.akagi.ytdlp.FormatRecommender
@@ -33,6 +35,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -216,7 +219,7 @@ class DownloadViewModel @Inject constructor(
                     val selected = FormatRecommender.initialSelection(choices, remembered())
                     // Another video's sheet is left as it is (C-01).
                     sheet.update { model -> if (model?.videoId == videoId) model.copy(selected = selected) else model }
-                    Load.Ready(info)
+                    Load.Ready(info, choices)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -234,7 +237,7 @@ class DownloadViewModel @Inject constructor(
     private fun updateChoice(pick: (FormatChoices) -> FormatOption?) {
         sheet.update { model ->
             val ready = model?.load as? Load.Ready ?: return@update model
-            model.copy(selected = pick(FormatRecommender.choicesFor(ready.info)) ?: model.selected)
+            model.copy(selected = pick(ready.choices) ?: model.selected)
         }
     }
 
@@ -260,12 +263,23 @@ class DownloadViewModel @Inject constructor(
 
     private fun statusOf(videoId: String?): Flow<VideoStatus?> {
         if (videoId == null) return flowOf(null)
-        return combine(
-            library.observeTrack(videoId),
-            queue.tasks.map { tasks -> tasks.firstOrNull { it.request.videoId == videoId } },
-            queue.progress,
-        ) { track, task, progress -> VideoStatus(track, task, task?.let { progress[it.id] }) }
+        val task = queue.tasks.map { tasks ->
+            tasks.firstOrNull { it.request.videoId == videoId }
+        }.distinctUntilChanged()
+        // Only this video's progress, so other downloads' ticks don't rebuild the FAB and the sheet (PF-01).
+        val taskProgress = task.flatMapLatest { current ->
+            if (current == null) {
+                flowOf(TaskProgress(null, null))
+            } else {
+                queue.progress.map { it[current.id] }.distinctUntilChanged().map { TaskProgress(current, it) }
+            }
+        }
+        return combine(library.observeTrack(videoId), taskProgress) { track, (task, progress) ->
+            VideoStatus(track, task, progress)
+        }
     }
+
+    private data class TaskProgress(val task: DownloadTask?, val progress: DownloadProgress?)
 
     private fun emit(build: (Long) -> DownloadEvent) {
         event.value = build(++nextEventId)
