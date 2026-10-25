@@ -111,6 +111,12 @@ fun SettingsScreen(
                 ),
             )
             Spacer(Modifier.height(8.dp))
+            AudioOutputSection(
+                state = state,
+                onPreferUsbDacChange = viewModel::onPreferUsbDacChanged,
+                onMatchSampleRateChange = viewModel::onMatchSampleRateChanged,
+            )
+            Spacer(Modifier.height(8.dp))
             StorageSection(library = state.library, appStorage = state.appStorage)
             Spacer(Modifier.height(8.dp))
             AboutSection(onShowLicences = { showLicences = true })
@@ -208,24 +214,12 @@ private fun ColumnScope.DownloadsSection(
         selected = settings.lastCodec ?: AudioCodec.OPUS,
         onSelect = onPreferredCodecChange,
     )
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .toggleable(value = settings.prefetchFormats, role = Role.Switch, onValueChange = onPrefetchChange),
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.settings_prefetch), style = MaterialTheme.typography.bodyLarge)
-            Text(
-                stringResource(R.string.settings_prefetch_summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(Modifier.width(12.dp))
-        Switch(checked = settings.prefetchFormats, onCheckedChange = null)
-    }
+    SwitchRow(
+        title = stringResource(R.string.settings_prefetch),
+        summary = stringResource(R.string.settings_prefetch_summary),
+        checked = settings.prefetchFormats,
+        onCheckedChange = onPrefetchChange,
+    )
 }
 
 @Composable

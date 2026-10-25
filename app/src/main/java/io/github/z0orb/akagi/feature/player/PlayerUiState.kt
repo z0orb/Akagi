@@ -2,6 +2,7 @@ package io.github.z0orb.akagi.feature.player
 
 import androidx.compose.runtime.Immutable
 import io.github.z0orb.akagi.playback.NowPlaying
+import io.github.z0orb.akagi.playback.PcmFormat
 import io.github.z0orb.akagi.playback.RepeatMode
 
 @Immutable
@@ -13,7 +14,13 @@ data class PlayerUiState(
     val repeat: RepeatMode = RepeatMode.OFF,
     val playingFrom: PlayingFrom? = null,
     val waveform: Waveform? = null,
+    /** Set only while a USB DAC is the route (PLAN §7.19). */
+    val usbDac: UsbDacOutput? = null,
 )
+
+/** [format] is what the DAC runs at, or null when Android picks it. */
+@Immutable
+data class UsbDacOutput(val format: PcmFormat?)
 
 @Immutable
 sealed interface PlayingFrom {

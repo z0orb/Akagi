@@ -1,6 +1,7 @@
 package io.github.z0orb.akagi.feature.settings
 
 import android.net.Uri
+import android.os.Build
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -19,6 +20,8 @@ import io.github.z0orb.akagi.data.prefs.Settings
 import io.github.z0orb.akagi.data.prefs.SettingsRepository
 import io.github.z0orb.akagi.data.storage.AppStorage
 import io.github.z0orb.akagi.data.storage.StorageUsage
+import io.github.z0orb.akagi.playback.AudioRoute
+import io.github.z0orb.akagi.playback.AudioRouteMonitor
 import io.github.z0orb.akagi.ytdlp.FormatTier
 import io.github.z0orb.akagi.ytdlp.UpdateResult
 import io.github.z0orb.akagi.ytdlp.YtDlpEngine
@@ -45,6 +48,10 @@ data class SettingsUiState(
     val library: LibrarySize? = null,
     /** Akagi's own storage; null until measured. */
     val appStorage: AppStorage? = null,
+    /** Where audio goes now, for the Audio output section (PLAN §7.19). */
+    val audio: AudioRoute = AudioRoute(),
+    /** Matching the DAC's rate needs Android 14's mixer attributes. */
+    val matchSampleRateSupported: Boolean = false,
     /** Something the UI should do once, then acknowledge with [SettingsViewModel.onEventHandled]. */
     val event: SettingsEvent? = null,
 )
@@ -76,6 +83,7 @@ class SettingsViewModel @Inject constructor(
     private val account: AccountRepository,
     library: LibraryRepository,
     private val storageUsage: StorageUsage,
+    routes: AudioRouteMonitor,
 ) : ViewModel() {
 
     private val version = MutableStateFlow<String?>(null)
@@ -90,7 +98,8 @@ class SettingsViewModel @Inject constructor(
         account.state,
         combine(cookieImport, event, ::Pair),
         combine(library.observeLibrarySize(), appStorage, ::Pair),
-    ) { (settings, version, update), signIn, (cookieImport, event), (librarySize, storage) ->
+        routes.route,
+    ) { (settings, version, update), signIn, (cookieImport, event), (librarySize, storage), audio ->
         SettingsUiState(
             settings = settings,
             ytDlpVersion = version,
@@ -99,6 +108,8 @@ class SettingsViewModel @Inject constructor(
             cookieImport = cookieImport,
             library = librarySize,
             appStorage = storage,
+            audio = audio,
+            matchSampleRateSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE,
             event = event,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), SettingsUiState())
@@ -136,6 +147,10 @@ class SettingsViewModel @Inject constructor(
         save { repository.rememberChoice(codec, FormatTier.RECOMMENDED.name) }
 
     fun onCookiePolicyChanged(policy: CookiePolicy) = save { repository.setCookiePolicy(policy) }
+
+    fun onPreferUsbDacChanged(enabled: Boolean) = save { repository.setPreferUsbDac(enabled) }
+
+    fun onMatchSampleRateChanged(enabled: Boolean) = save { repository.setMatchSampleRate(enabled) }
 
     fun onImportCookies(uri: Uri) {
         viewModelScope.launch { cookieImport.value = account.importCookies(uri) }

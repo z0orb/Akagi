@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.z0orb.akagi.data.library.LibraryRepository
 import io.github.z0orb.akagi.data.library.PlaylistRepository
+import io.github.z0orb.akagi.playback.AudioRouteMonitor
 import io.github.z0orb.akagi.playback.HeadphoneDisconnectHandler
+import io.github.z0orb.akagi.playback.OutputKind
 import io.github.z0orb.akagi.playback.PlayerConnection
 import io.github.z0orb.akagi.playback.QueueSource
 import javax.inject.Inject
@@ -29,6 +31,7 @@ class PlayerViewModel @Inject constructor(
     private val headphones: HeadphoneDisconnectHandler,
     library: LibraryRepository,
     playlists: PlaylistRepository,
+    routes: AudioRouteMonitor,
 ) : ViewModel() {
 
     // Looked up once per track, not on every play/pause.
@@ -49,8 +52,17 @@ class PlayerViewModel @Inject constructor(
             }
         }
 
-    val uiState: StateFlow<PlayerUiState> = combine(player.state, waveform, playingFrom) { state, waveform, from ->
-        PlayerUiState(state.current, state.isPlaying, state.shuffle, state.repeat, from, waveform)
+    private val usbDac: Flow<UsbDacOutput?> = routes.route
+        .map { route -> route.takeIf { it.kind == OutputKind.USB_DAC }?.let { UsbDacOutput(it.dacFormat) } }
+        .distinctUntilChanged()
+
+    val uiState: StateFlow<PlayerUiState> = combine(player.state, waveform, playingFrom, usbDac) {
+            state,
+            waveform,
+            from,
+            dac,
+        ->
+        PlayerUiState(state.current, state.isPlaying, state.shuffle, state.repeat, from, waveform, dac)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), PlayerUiState())
 
     fun onPlayPause() = player.togglePlayPause()

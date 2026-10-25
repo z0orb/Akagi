@@ -58,6 +58,9 @@
   going in the background with the screen off, with simple lock-screen and notification controls.
 - **Considerate audio.** When headphones or earbuds disconnect, Akagi pauses and sets the media volume to 0, so nothing
   blasts from the speaker. A YouTube video playing with sound pauses Akagi, and pressing play in Akagi pauses YouTube.
+- **USB DAC support.** Plug in a USB-C DAC and Akagi plays through it. On Android 14 and newer it opens the DAC at
+  each track's own sample rate (44.1 or 48 kHz), so Android doesn't resample it. The expanded player and Settings →
+  Audio output show what the DAC runs at.
 
 ### Keep working
 - **Update yt-dlp in the app.** When YouTube changes something, tap **Check & update** in Settings. Akagi also checks
@@ -128,6 +131,17 @@ Finding the formats of a video takes 10–20 seconds on a typical phone. With "F
 After an uninstall and reinstall, Akagi doesn't know the songs it saved before. They stay in `Music/Akagi` and play
 in other music apps. Downloading one again in Akagi saves a second copy. To keep your library, update by installing
 the new APK over the old one instead of uninstalling first.
+</details>
+
+<details>
+<summary><b>Does Akagi work with a USB DAC?</b></summary>
+
+Yes. Plug in a USB-C DAC or dongle and Akagi plays through it, even while Bluetooth headphones are connected (turn
+off "Play through the USB DAC" in Settings → Audio output to leave the choice to Android). On Android 14 and newer,
+"Match each track's sample rate" opens the DAC at the track's own rate in its deepest bit depth, so a 44.1 kHz song
+isn't resampled to 48 kHz. Settings → Audio output shows the DAC, its formats, what Akagi sends and what the DAC runs
+at. Bit-perfect output (bypassing Android's mixer and volume) isn't supported. Unplugging the DAC pauses playback and
+sets the volume to 0, like other headphones.
 </details>
 
 <details>

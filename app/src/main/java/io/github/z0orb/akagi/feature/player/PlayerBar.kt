@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -48,6 +49,7 @@ import io.github.z0orb.akagi.R
 import io.github.z0orb.akagi.core.common.DurationFormatter
 import io.github.z0orb.akagi.core.designsystem.TrackThumbnail
 import io.github.z0orb.akagi.playback.NowPlaying
+import io.github.z0orb.akagi.playback.OutputFormat
 import io.github.z0orb.akagi.playback.RepeatMode
 import kotlinx.coroutines.delay
 
@@ -176,15 +178,18 @@ private fun ExpandedPlayer(
                     contentDescription = stringResource(R.string.player_collapse),
                 )
             }
-            state.playingFrom?.let {
-                Text(
-                    stringResource(R.string.player_playing_from, playingFromLabel(it)),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            Box(modifier = Modifier.weight(1f)) {
+                state.playingFrom?.let {
+                    Text(
+                        stringResource(R.string.player_playing_from, playingFromLabel(it)),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
+            state.usbDac?.let { UsbDacChip(it) }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             TrackThumbnail(track.thumbnailPath, modifier = Modifier.size(72.dp))
@@ -322,3 +327,22 @@ private fun rememberPositionMs(isPlaying: Boolean, trackId: Long, seeks: Int, re
 private val swipeDistance = 48.dp
 private const val FLING_VELOCITY = 1_000f
 private const val TICK_MS = 200L
+
+/** "USB DAC · 44.1 kHz · 24-bit", or "USB DAC" alone while Android picks the format (PLAN §7.19). */
+@Composable
+private fun UsbDacChip(output: UsbDacOutput) {
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.padding(start = 8.dp),
+    ) {
+        Text(
+            text = output.format?.let { stringResource(R.string.player_output_usb_dac, OutputFormat.format(it)) }
+                ?: stringResource(R.string.output_usb_dac),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        )
+    }
+}
