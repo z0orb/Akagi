@@ -2,9 +2,11 @@ package io.github.z0orb.akagi.data.prefs
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -36,7 +38,12 @@ data class Settings(
     val matchSampleRate: Boolean = true,
 )
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+// A corrupt file would otherwise throw on every read, including the start-up yt-dlp check, so the app could never
+// start again (B-10). Losing the settings to their defaults is the lesser harm.
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "settings",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+)
 
 @Singleton
 class SettingsRepository @Inject constructor(@ApplicationContext context: Context) {
