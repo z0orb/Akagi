@@ -30,6 +30,10 @@ data class Settings(
     val autoUpdate: AutoUpdate = AutoUpdate.WIFI_ONLY,
     val lastUpdateCheckMillis: Long = 0,
     val cookiePolicy: CookiePolicy = CookiePolicy.ONLY_WHEN_NEEDED,
+    /** Route playback to a connected USB DAC even when another output is active (PLAN §7.19). */
+    val preferUsbDac: Boolean = true,
+    /** Open the USB DAC at each track's own sample rate (Android 14+). */
+    val matchSampleRate: Boolean = true,
 )
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -49,6 +53,8 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
             lastUpdateCheckMillis = prefs[LAST_UPDATE_CHECK] ?: 0,
             cookiePolicy = prefs[COOKIE_POLICY]?.let { name -> CookiePolicy.entries.firstOrNull { it.name == name } }
                 ?: CookiePolicy.ONLY_WHEN_NEEDED,
+            preferUsbDac = prefs[PREFER_USB_DAC] ?: true,
+            matchSampleRate = prefs[MATCH_SAMPLE_RATE] ?: true,
         )
     }
 
@@ -69,6 +75,10 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
 
     suspend fun setCookiePolicy(policy: CookiePolicy) = store.edit { it[COOKIE_POLICY] = policy.name }
 
+    suspend fun setPreferUsbDac(enabled: Boolean) = store.edit { it[PREFER_USB_DAC] = enabled }
+
+    suspend fun setMatchSampleRate(enabled: Boolean) = store.edit { it[MATCH_SAMPLE_RATE] = enabled }
+
     private companion object {
         val LAST_CODEC = stringPreferencesKey("last_codec")
         val LAST_TIER = stringPreferencesKey("last_tier")
@@ -77,5 +87,7 @@ class SettingsRepository @Inject constructor(@ApplicationContext context: Contex
         val AUTO_UPDATE = stringPreferencesKey("auto_update")
         val LAST_UPDATE_CHECK = longPreferencesKey("last_update_check")
         val COOKIE_POLICY = stringPreferencesKey("cookie_policy")
+        val PREFER_USB_DAC = booleanPreferencesKey("prefer_usb_dac")
+        val MATCH_SAMPLE_RATE = booleanPreferencesKey("match_sample_rate")
     }
 }

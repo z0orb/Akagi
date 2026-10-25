@@ -11,6 +11,8 @@
     <!-- Keeps the CPU awake for playback with the screen off (ExoPlayer wake mode, PLAN §7.8). -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Opens a USB DAC at the track's own sample rate (preferred mixer attributes, PLAN §7.19). Granted at install. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <!--
         allowBackup is off on purpose: a restored database would point at Music/Akagi files the

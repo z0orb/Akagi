@@ -13,6 +13,8 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -20,7 +22,17 @@ import androidx.media3.session.SessionCommands
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.z0orb.akagi.MainActivity
 import io.github.z0orb.akagi.R
+import io.github.z0orb.akagi.data.prefs.SettingsRepository
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 /**
  * Owns the player, so music keeps going with the screen off and after the app is swiped away
@@ -33,12 +45,22 @@ class PlaybackService : MediaSessionService() {
     @Inject
     lateinit var headphones: HeadphoneDisconnectHandler
 
+    @Inject
+    lateinit var routes: AudioRouteMonitor
+
+    @Inject
+    lateinit var settings: SettingsRepository
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var dacOutput: DacOutput? = null
+
     private var session: MediaSession? = null
     private var noisyReceiver: BroadcastReceiver? = null
 
     override fun onCreate() {
         super.onCreate()
-        val player = ExoPlayer.Builder(this)
+        val dac = DacOutput(this, routes).also { dacOutput = it }
+        val player = ExoPlayer.Builder(this, dac.renderersFactory())
             .setAudioAttributes(
                 AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),
                 // Another app taking focus pauses Akagi; a transient loss ducks or pauses and resumes (R11).
@@ -50,6 +72,7 @@ class PlaybackService : MediaSessionService() {
             .build()
         player.setShuffleOrder(StartFirstShuffleOrder.startingAt(0))
         player.addListener(ShuffleFromCurrentTrack(player))
+        player.addAnalyticsListener(ReportOutputFormat(routes))
         player.addListener(
             SkipMissingFiles(player) {
                 Toast.makeText(this, R.string.player_skipped_missing, Toast.LENGTH_SHORT).show()
@@ -65,6 +88,7 @@ class PlaybackService : MediaSessionService() {
             .setSessionActivity(openAppIntent())
             .setCallback(MinimalSystemControls)
             .build()
+        followUsbDac(player, dac)
         noisyReceiver = headphones.register(this) {
             if (player.playWhenReady) {
                 player.pause()
@@ -76,6 +100,9 @@ class PlaybackService : MediaSessionService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
 
     override fun onDestroy() {
+        scope.cancel()
+        dacOutput?.release()
+        dacOutput = null
         noisyReceiver?.let(::unregisterReceiver)
         noisyReceiver = null
         session?.run {
@@ -84,6 +111,47 @@ class PlaybackService : MediaSessionService() {
         }
         session = null
         super.onDestroy()
+    }
+
+    /**
+     * Plays through a connected USB DAC while "Play through the USB DAC" is on, and keeps its mixer
+     * format in step with the settings (PLAN §7.19).
+     */
+    private fun followUsbDac(player: ExoPlayer, dac: DacOutput) {
+        val dacRoute = routes.route.map { (it.kind == OutputKind.USB_DAC) to it.dacConnected }.distinctUntilChanged()
+        val options = settings.settings.map { it.preferUsbDac to it.matchSampleRate }.distinctUntilChanged()
+        var applied: Triple<Int?, Boolean, Boolean>? = null
+        scope.launch {
+            combine(dacRoute, options, ::Pair).collect { (dacRoute, options) ->
+                val onDac = dacRoute.first
+                val (prefer, matchRate) = options
+                val usbDac = routes.usbDac
+                val target = usbDac?.takeIf { prefer || onDac }
+                val key = Triple(target?.id, prefer, matchRate)
+                val apply = {
+                    player.setPreferredAudioDevice(usbDac?.takeIf { prefer })
+                    dac.update(target, matchRate)
+                }
+                // The open AudioTrack keeps its old device and mixer (on HyperOS it can go silent), so the
+                // change only takes hold on a new one. An unplug needs none: Android moves it to the speaker.
+                if (applied != null && key != applied && usbDac != null) reopenAudio(player, apply) else apply()
+                applied = key
+            }
+        }
+    }
+
+    /**
+     * Rebuilds the AudioTrack around [apply] at the same position; stop() keeps the queue, position and
+     * playWhenReady. Clearing the DAC's mixer format reopens its output in the background, and a track
+     * built during that stays silent on HyperOS, so the new one waits for it.
+     */
+    private suspend fun reopenAudio(player: ExoPlayer, apply: () -> Unit) {
+        val active = player.playbackState != Player.STATE_IDLE && player.playbackState != Player.STATE_ENDED
+        if (active) player.stop()
+        apply()
+        if (!active) return
+        delay(REOPEN_SETTLE_MS)
+        player.prepare()
     }
 
     private fun openAppIntent(): PendingIntent = PendingIntent.getActivity(
@@ -109,6 +177,17 @@ class PlaybackService : MediaSessionService() {
             if (player.mediaItemCount > 0) player.prepare()
             onSkip()
         }
+    }
+
+    /** Tells the monitor what Akagi sends, for Settings → Audio output and the player chip. */
+    private class ReportOutputFormat(private val routes: AudioRouteMonitor) : AnalyticsListener {
+        override fun onAudioTrackInitialized(
+            eventTime: AnalyticsListener.EventTime,
+            config: AudioSink.AudioTrackConfig,
+        ) = routes.reportSent(pcmFormatOf(config.sampleRate, config.encoding, config.channelConfig))
+
+        override fun onAudioTrackReleased(eventTime: AnalyticsListener.EventTime, config: AudioSink.AudioTrackConfig) =
+            routes.reportSent(null)
     }
 
     /** Turning shuffle on mid-queue starts the shuffled order at the current track, so none is skipped. */
@@ -152,5 +231,9 @@ class PlaybackService : MediaSessionService() {
         } else {
             super.onConnect(session, controller)
         }
+    }
+
+    private companion object {
+        const val REOPEN_SETTLE_MS = 400L
     }
 }
