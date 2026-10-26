@@ -136,7 +136,8 @@ private fun MiniPlayer(
                     track.title,
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
-                    modifier = Modifier.basicMarquee(),
+                    // One pass: while it scrolls, every frame redraws (≈ 90 ms/s main + 200 ms/s RenderThread, PF-14).
+                    modifier = Modifier.basicMarquee(iterations = 1),
                 )
                 TimeText({ timesOf(position(), track.durationMs) })
             }
