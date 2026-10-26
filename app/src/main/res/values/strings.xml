@@ -120,7 +120,10 @@
     <string name="notif_channel_progress">Download progress</string>
     <string name="notif_channel_events">Finished and failed downloads</string>
     <string name="notif_summary">Downloading audio</string>
-    <string name="notif_summary_count">%1$d downloads in progress</string>
+    <plurals name="notif_summary_count">
+        <item quantity="one">%1$d download in progress</item>
+        <item quantity="other">%1$d downloads in progress</item>
+    </plurals>
     <string name="notif_queued">Waiting…</string>
     <string name="notif_processing">Finishing up…</string>
     <string name="notif_progress">%1$d %%</string>

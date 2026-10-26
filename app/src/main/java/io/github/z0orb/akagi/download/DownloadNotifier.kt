@@ -59,7 +59,7 @@ class DownloadNotifier @Inject constructor(
     fun summary(activeCount: Int): Notification = NotificationCompat.Builder(context, CHANNEL_PROGRESS)
         .setSmallIcon(R.drawable.ic_stat_akagi)
         .setContentTitle(context.getString(R.string.notif_summary))
-        .setContentText(context.resources.getString(R.string.notif_summary_count, activeCount))
+        .setContentText(context.resources.getQuantityString(R.plurals.notif_summary_count, activeCount, activeCount))
         .setContentIntent(openApp())
         .setGroup(GROUP)
         .setGroupSummary(true)
