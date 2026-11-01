@@ -11,8 +11,6 @@ class YouTubeLinkParserTest {
     private val videoLinks = listOf(
         "https://www.youtube.com/watch?v=$id",
         "https://youtube.com/watch?v=$id&t=42s",
-        "https://m.youtube.com/watch?v=$id&list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf&index=3",
-        "https://music.youtube.com/watch?v=$id&si=AbCdEfGh12345678",
         "https://youtu.be/$id",
         "https://youtu.be/$id?si=AbCdEfGh12345678&t=10",
         "youtu.be/$id",
@@ -41,6 +39,73 @@ class YouTubeLinkParserTest {
         videoLinks.forEach { link ->
             assertEquals(link, LinkTarget.Video(id), YouTubeLinkParser.parse(link))
         }
+    }
+
+    @Test
+    fun `a music link opens on YouTube Music`() {
+        assertEquals(
+            LinkTarget.Video(id, Site.YOUTUBE_MUSIC),
+            YouTubeLinkParser.parse("https://music.youtube.com/watch?v=$id&si=AbCdEfGh12345678"),
+        )
+        assertEquals(
+            "https://music.youtube.com/watch?v=$id",
+            YouTubeLinkParser.parse("music.youtube.com/watch?v=$id")?.url,
+        )
+    }
+
+    @Test
+    fun `a watch link keeps its playlist and nothing else`() {
+        val list = "PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf"
+        val target = YouTubeLinkParser.parse("https://m.youtube.com/watch?v=$id&list=$list&index=3&t=9")
+        assertEquals(LinkTarget.Video(id, Site.YOUTUBE, list), target)
+        assertEquals("https://m.youtube.com/watch?v=$id&list=$list", target?.url)
+        assertEquals(
+            LinkTarget.Video(id, Site.YOUTUBE_MUSIC, "RDAMVM$id"),
+            YouTubeLinkParser.parse("https://music.youtube.com/watch?v=$id&list=RDAMVM$id"),
+        )
+    }
+
+    @Test
+    fun `a malformed list is dropped`() {
+        assertEquals(LinkTarget.Video(id), YouTubeLinkParser.parse("https://youtu.be/$id?list=a"))
+        assertEquals(LinkTarget.Video(id), YouTubeLinkParser.parse("https://youtu.be/$id?list=bad%20list"))
+    }
+
+    @Test
+    fun `plain text searches the site on screen`() {
+        assertEquals(
+            LinkTarget.Search("teh hijau", Site.YOUTUBE_MUSIC),
+            YouTubeLinkParser.parse("teh hijau", Site.YOUTUBE_MUSIC),
+        )
+        assertEquals(
+            "https://music.youtube.com/search?q=teh+hijau",
+            YouTubeLinkParser.parse("teh hijau", Site.YOUTUBE_MUSIC)?.url,
+        )
+    }
+
+    @Test
+    fun `a pasted link ignores the site on screen`() {
+        assertEquals(
+            LinkTarget.Video(id, Site.YOUTUBE),
+            YouTubeLinkParser.parse("https://youtu.be/$id", Site.YOUTUBE_MUSIC),
+        )
+    }
+
+    @Test
+    fun `siteOf follows the host`() {
+        assertEquals(Site.YOUTUBE_MUSIC, YouTubeLinkParser.siteOf("https://music.youtube.com/browse/MPREb_x"))
+        assertEquals(Site.YOUTUBE, YouTubeLinkParser.siteOf("https://m.youtube.com/watch?v=$id"))
+        assertEquals(Site.YOUTUBE, YouTubeLinkParser.siteOf("https://www.youtube.com/"))
+        assertNull(YouTubeLinkParser.siteOf("https://accounts.google.com/ServiceLogin"))
+        assertNull(YouTubeLinkParser.siteOf("about:blank"))
+    }
+
+    @Test
+    fun `a music video page is a video page`() {
+        assertEquals(
+            VideoRef(id, isShort = false),
+            YouTubeLinkParser.videoPageOf("https://music.youtube.com/watch?v=$id&list=RDAMVM$id"),
+        )
     }
 
     @Test

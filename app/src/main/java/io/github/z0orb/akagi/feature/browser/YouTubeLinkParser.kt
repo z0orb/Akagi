@@ -6,10 +6,12 @@ import java.net.URLDecoder
 
 /**
  * Turns pasted or typed text into something to open (PLAN §7.2), and recognises video pages for the FAB.
- * Only the video ID survives: `t`, `list`, `si`, `pp` and friends are dropped on purpose.
+ * Only the video ID and the playlist survive (D-073): `t`, `si`, `pp` and friends are dropped on purpose.
  */
 object YouTubeLinkParser {
     private val videoIdPattern = Regex("^[A-Za-z0-9_-]{11}$")
+    private val listIdPattern = Regex("^[A-Za-z0-9_-]{2,128}$")
+    private const val MUSIC_HOST = "music.youtube.com"
 
     // Share sheets wrap the link in a title or sentence, so search for it. The lookbehind rejects
     // hosts like "notyoutube.com" and paths like "example.com/youtube.com"; the lookahead rejects
@@ -22,13 +24,25 @@ object YouTubeLinkParser {
     private val idPathPrefixes = setOf("shorts", "live", "embed", "v", "e")
     private const val URI_ILLEGAL_CHARS = " \"<>\\^`{|}"
 
-    /** Returns null for blank input. */
-    fun parse(input: String): LinkTarget? {
+    /** Returns null for blank input. Plain text searches [site], the site on screen. */
+    fun parse(input: String, site: Site = Site.YOUTUBE): LinkTarget? {
         val text = input.trim()
         if (text.isEmpty()) return null
         val link = linkPattern.find(text)?.value?.trimEnd { it in TRAILING_PUNCTUATION }
-        val uri = link?.let(::toUri) ?: return LinkTarget.Search(text)
-        return videoIdOf(uri)?.let(LinkTarget::Video) ?: LinkTarget.Page(pageUrlOf(uri))
+        val uri = link?.let(::toUri) ?: return LinkTarget.Search(text, site)
+        val videoId = videoIdOf(uri) ?: return LinkTarget.Page(pageUrlOf(uri))
+        val linkSite = if (uri.host.equals(MUSIC_HOST, ignoreCase = true)) Site.YOUTUBE_MUSIC else Site.YOUTUBE
+        return LinkTarget.Video(videoId, linkSite, queryParams(uri)["list"]?.takeIf(listIdPattern::matches))
+    }
+
+    /** The site of a page the WebView navigated to; null outside YouTube (sign-in, about:blank). */
+    fun siteOf(url: String): Site? {
+        val host = toUri(url)?.host?.lowercase() ?: return null
+        return when {
+            host == MUSIC_HOST -> Site.YOUTUBE_MUSIC
+            isYouTubeHost(host) -> Site.YOUTUBE
+            else -> null
+        }
     }
 
     /** The video shown by a page the WebView navigated to: only watch and Shorts pages count. */

@@ -7,7 +7,9 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.JsResult
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -57,6 +59,7 @@ fun BrowserHost(
                     if (audible && !controller.webMediaAudible) currentOnWebAudioStart()
                     controller.webMediaAudible = audible
                 }
+                YouTubeMusicPage.install(this)
                 loadUrl(controller.lastUrl ?: startUrl)
             }
         }
@@ -103,6 +106,10 @@ private fun createWebView(
     onPageChange: (String, Boolean) -> Unit,
 ): WebView {
     val webView = WebView(context)
+    // AndroidView would give it WRAP_CONTENT, which makes the WebView lay pages out at zero height: CSS `vh`
+    // units become 0 and YouTube Music's player page (sized in vh) collapses to a black screen.
+    webView.layoutParams =
+        ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
     // Avoids a white flash before YouTube paints.
     webView.setBackgroundColor(backgroundColor)
     webView.settings.apply {
@@ -181,6 +188,13 @@ private class FullscreenChromeClient(private val controller: BrowserController) 
 
     override fun onHideCustomView() {
         controller.clearFullscreen()
+    }
+
+    // Every navigation is the user's own (mark menu, link bar), so a site's "changes may not be saved" prompt
+    // (YouTube Music's player page raises one) would only get in the way.
+    override fun onJsBeforeUnload(view: WebView, url: String, message: String, result: JsResult): Boolean {
+        result.confirm()
+        return true
     }
 
     // The default poster is a grey play glyph that flashes before every video.

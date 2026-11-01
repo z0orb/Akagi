@@ -9,6 +9,8 @@ data class BrowserUiState(
     /** The video on screen; the download FAB shows only when this is set. */
     val currentVideo: VideoRef? = null,
     val canGoBack: Boolean = false,
+    /** The site of the page on screen; pages outside YouTube (sign-in) keep the previous one. */
+    val site: Site = Site.YOUTUBE,
     /** A navigation the UI should perform once, then acknowledge with [BrowserViewModel.onLoadHandled]. */
     val pendingLoad: PendingLoad? = null,
 )

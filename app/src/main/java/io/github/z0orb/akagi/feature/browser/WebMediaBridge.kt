@@ -11,7 +11,7 @@ import androidx.webkit.WebViewFeature
 internal object WebMediaBridge {
 
     /** The page reports through `akagi.postMessage`, which only these origins get (no wildcard). */
-    private val allowedOrigins = setOf("https://m.youtube.com", "https://www.youtube.com")
+    private val allowedOrigins = setOf("https://m.youtube.com", "https://www.youtube.com", "https://music.youtube.com")
 
     // Capturing listeners on the document see every media element, including ones added later.
     // Muted playback is ignored: the Home feed's silent previews must not stop Akagi.

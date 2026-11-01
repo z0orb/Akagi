@@ -1,5 +1,7 @@
 package io.github.z0orb.akagi.feature.browser
 
+import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -13,6 +15,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -21,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -38,11 +43,11 @@ import androidx.compose.ui.unit.dp
 import io.github.z0orb.akagi.R
 import kotlinx.coroutines.launch
 
-/** Top bar (PLAN §7.2): Akagi mark (home) · link/search field · settings. */
+/** Top bar (PLAN §7.2): Akagi mark (site menu, D-073) · link/search field · settings. */
 @Composable
 fun BrowserTopBar(
     onSubmit: (String) -> Unit,
-    onHomeClick: () -> Unit,
+    onSiteClick: (Site) -> Unit,
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -54,14 +59,7 @@ fun BrowserTopBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        IconButton(onClick = onHomeClick) {
-            Icon(
-                painter = painterResource(R.drawable.ic_stat_akagi),
-                contentDescription = stringResource(R.string.action_youtube_home),
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(26.dp),
-            )
-        }
+        SiteMenu(onSiteClick = onSiteClick)
         LinkField(onSubmit = onSubmit, modifier = Modifier.weight(1f))
         IconButton(onClick = onSettingsClick) {
             Icon(
@@ -71,6 +69,42 @@ fun BrowserTopBar(
             )
         }
     }
+}
+
+@Composable
+private fun SiteMenu(onSiteClick: (Site) -> Unit, modifier: Modifier = Modifier) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier) {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                painter = painterResource(R.drawable.ic_stat_akagi),
+                contentDescription = stringResource(R.string.action_choose_site),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(26.dp),
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            SiteItem(R.string.site_youtube, R.drawable.ic_play_circle) {
+                expanded = false
+                onSiteClick(Site.YOUTUBE)
+            }
+            SiteItem(R.string.site_youtube_music, R.drawable.ic_music_note) {
+                expanded = false
+                onSiteClick(Site.YOUTUBE_MUSIC)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SiteItem(@StringRes label: Int, @DrawableRes icon: Int, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(stringResource(label)) },
+        onClick = onClick,
+        leadingIcon = {
+            Icon(painterResource(icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        },
+    )
 }
 
 @Composable

@@ -1,8 +1,10 @@
 <resources>
     <string name="app_name">Akagi</string>
-    <string name="top_bar_link_hint">Paste link or search YouTube</string>
+    <string name="top_bar_link_hint">Paste link or search</string>
     <string name="action_settings">Settings</string>
-    <string name="action_youtube_home">YouTube home</string>
+    <string name="action_choose_site">Open YouTube or YouTube Music</string>
+    <string name="site_youtube">YouTube</string>
+    <string name="site_youtube_music">YouTube Music</string>
     <string name="action_paste">Paste link</string>
     <string name="action_clear">Clear</string>
     <string name="action_download">Download audio</string>

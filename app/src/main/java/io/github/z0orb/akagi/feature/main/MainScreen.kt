@@ -225,7 +225,7 @@ fun MainScreen(
         Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
             BrowserTopBar(
                 onSubmit = browserViewModel::onQuerySubmit,
-                onHomeClick = browserViewModel::onHomeClick,
+                onSiteClick = browserViewModel::onSiteClick,
                 onSettingsClick = { overlay = Overlay.SETTINGS },
             )
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {

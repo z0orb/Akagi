@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.update
 @HiltViewModel
 class BrowserViewModel @Inject constructor(private val savedState: SavedStateHandle) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(BrowserUiState(startUrl = savedState[KEY_LAST_URL] ?: YouTubeUrls.HOME))
+    private val _uiState = MutableStateFlow(initialState(savedState[KEY_LAST_URL] ?: YouTubeUrls.HOME))
     val uiState: StateFlow<BrowserUiState> = _uiState.asStateFlow()
 
     private var nextLoadId = 0L
@@ -22,14 +22,22 @@ class BrowserViewModel @Inject constructor(private val savedState: SavedStateHan
         if (url.startsWith("https://") && NavigationPolicy.decide(url) == NavigationDecision.LOAD) {
             savedState[KEY_LAST_URL] = url
         }
-        _uiState.update { it.copy(currentVideo = YouTubeLinkParser.videoPageOf(url), canGoBack = canGoBack) }
+        _uiState.update {
+            it.copy(
+                currentVideo = YouTubeLinkParser.videoPageOf(url),
+                canGoBack = canGoBack,
+                site = YouTubeLinkParser.siteOf(url) ?: it.site,
+            )
+        }
     }
 
     fun onQuerySubmit(text: String) {
-        YouTubeLinkParser.parse(text)?.let { load(it.url) }
+        YouTubeLinkParser.parse(text, _uiState.value.site)?.let { load(it.url) }
     }
 
     fun onHomeClick() = load(YouTubeUrls.HOME)
+
+    fun onSiteClick(site: Site) = load(YouTubeUrls.home(site))
 
     fun onSignInClick() = load(YouTubeUrls.SIGN_IN)
 
@@ -43,5 +51,8 @@ class BrowserViewModel @Inject constructor(private val savedState: SavedStateHan
 
     private companion object {
         const val KEY_LAST_URL = "last_url"
+
+        fun initialState(startUrl: String) =
+            BrowserUiState(startUrl = startUrl, site = YouTubeLinkParser.siteOf(startUrl) ?: Site.YOUTUBE)
     }
 }

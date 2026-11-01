@@ -67,6 +67,46 @@ class BrowserViewModelTest {
     }
 
     @Test
+    fun `the site follows the page on screen`() {
+        val viewModel = BrowserViewModel(SavedStateHandle())
+        assertEquals(Site.YOUTUBE, viewModel.uiState.value.site)
+
+        viewModel.onPageChange("https://music.youtube.com/", canGoBack = false)
+        assertEquals(Site.YOUTUBE_MUSIC, viewModel.uiState.value.site)
+
+        // A sign-in page keeps the previous site.
+        viewModel.onPageChange("https://accounts.google.com/ServiceLogin", canGoBack = true)
+        assertEquals(Site.YOUTUBE_MUSIC, viewModel.uiState.value.site)
+
+        viewModel.onPageChange(watchUrl, canGoBack = true)
+        assertEquals(Site.YOUTUBE, viewModel.uiState.value.site)
+    }
+
+    @Test
+    fun `starts on the site of the restored page`() {
+        val saved = SavedStateHandle()
+        BrowserViewModel(saved).onPageChange("https://music.youtube.com/watch?v=5F28ye50-Kc", canGoBack = true)
+        assertEquals(Site.YOUTUBE_MUSIC, BrowserViewModel(saved).uiState.value.site)
+    }
+
+    @Test
+    fun `search goes to the site on screen`() {
+        val viewModel = BrowserViewModel(SavedStateHandle())
+        viewModel.onPageChange("https://music.youtube.com/", canGoBack = false)
+        viewModel.onQuerySubmit("teh hijau")
+        assertEquals("https://music.youtube.com/search?q=teh+hijau", viewModel.uiState.value.pendingLoad?.url)
+    }
+
+    @Test
+    fun `choosing a site opens its home`() {
+        val viewModel = BrowserViewModel(SavedStateHandle())
+        viewModel.onSiteClick(Site.YOUTUBE_MUSIC)
+        assertEquals(YouTubeUrls.MUSIC_HOME, viewModel.uiState.value.pendingLoad?.url)
+        viewModel.onSiteClick(Site.YOUTUBE)
+        assertEquals(YouTubeUrls.HOME, viewModel.uiState.value.pendingLoad?.url)
+    }
+
+    @Test
     fun `blank submit does nothing`() {
         val viewModel = BrowserViewModel(SavedStateHandle())
         viewModel.onQuerySubmit("   ")
