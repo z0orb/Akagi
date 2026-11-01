@@ -1,5 +1,6 @@
 package io.github.z0orb.akagi.data.db
 
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
 
@@ -11,7 +12,9 @@ import androidx.room.RoomDatabase
         PlaylistTrackEntity::class,
         DownloadTaskEntity::class,
     ],
-    version = 1,
+    version = 2,
+    // v1 → v2 only adds nullable columns, so no spec is needed (D-071, D-075). Never a destructive fallback.
+    autoMigrations = [AutoMigration(from = 1, to = 2)],
     exportSchema = true,
 )
 abstract class AkagiDatabase : RoomDatabase() {

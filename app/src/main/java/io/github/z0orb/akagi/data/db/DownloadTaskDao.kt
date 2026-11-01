@@ -19,6 +19,16 @@ interface DownloadTaskDao {
     @Insert
     suspend fun insert(task: DownloadTaskEntity): Long
 
+    /** One transaction for a whole playlist: either every task is queued or none is. */
+    @Insert
+    suspend fun insertAll(tasks: List<DownloadTaskEntity>): List<Long>
+
+    @Query("UPDATE download_tasks SET targetPlaylistId = :playlistId, targetPosition = :position WHERE id = :id")
+    suspend fun setTarget(id: Long, playlistId: Long, position: Int)
+
+    @Query("DELETE FROM download_tasks")
+    suspend fun deleteAll()
+
     @Query(
         "UPDATE download_tasks SET state = :state, progress = :progress, errorType = :errorType, " +
             "errorMessage = :errorMessage, updatedAt = :now WHERE id = :id",

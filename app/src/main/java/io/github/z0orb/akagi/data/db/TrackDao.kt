@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.Flow
 /** How many tracks the library holds and their files' total size (Settings, P7.5). */
 data class LibrarySize(val count: Int, val bytes: Long)
 
+private const val EXISTING_CHUNK = 500
+
 @Dao
 interface TrackDao {
     @Query("SELECT * FROM tracks ORDER BY downloadedAt DESC")
@@ -30,6 +32,14 @@ interface TrackDao {
 
     @Query("SELECT * FROM tracks")
     suspend fun getAll(): List<TrackEntity>
+
+    @Query("SELECT videoId FROM tracks WHERE videoId IN (:videoIds)")
+    suspend fun videoIdsIn(videoIds: List<String>): List<String>
+
+    /** Which of [videoIds] are in the library. Chunked: SQLite on Android 10 allows 999 variables per query. */
+    @Transaction
+    suspend fun existingVideoIds(videoIds: Collection<String>): Set<String> =
+        videoIds.chunked(EXISTING_CHUNK).flatMap { videoIdsIn(it) }.toSet()
 
     @Query("SELECT COUNT(*) FROM playlist_tracks WHERE trackId = :trackId")
     suspend fun playlistCount(trackId: Long): Int

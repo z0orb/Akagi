@@ -189,6 +189,72 @@ class AkagiDatabaseTest {
         assertEquals(listOf(second), tasks.observeAll().first().map { it.id })
     }
 
+    @Test
+    fun `a playlist is found by the YouTube list it came from, the oldest first`() = runTest {
+        playlists.insert(PlaylistEntity(name = "Other", createdAt = 0, updatedAt = 0, sourceListId = "PLx"))
+        val first = playlists.insert(PlaylistEntity(name = "Mix", createdAt = 0, updatedAt = 0, sourceListId = "PLy"))
+        playlists.insert(PlaylistEntity(name = "Mix again", createdAt = 0, updatedAt = 0, sourceListId = "PLy"))
+
+        assertEquals(first, playlists.findBySourceListId("PLy")?.id)
+        assertNull(playlists.findBySourceListId("PLmissing"))
+        assertNull(playlists.findBySourceListId(""))
+    }
+
+    @Test
+    fun `addAt keeps YouTube's order even when tracks finish out of order`() = runTest {
+        val list = playlist("Album")
+        val third = tracks.save(track("c"), null)
+        val first = tracks.save(track("a"), null)
+        val second = tracks.save(track("b"), null)
+
+        playlists.addAt(list, third, position = 12, now = 1)
+        playlists.addAt(list, first, position = 10, now = 2)
+        playlists.addAt(list, second, position = 11, now = 3)
+
+        assertEquals(listOf("a", "b", "c"), titlesIn(list))
+        // A track already there keeps its place.
+        playlists.addAt(list, first, position = 99, now = 4)
+        assertEquals(listOf("a", "b", "c"), titlesIn(list))
+    }
+
+    @Test
+    fun `addAt to a deleted playlist does nothing and does not fail`() = runTest {
+        val list = playlist("Gone")
+        val a = tracks.save(track("a"), null)
+        playlists.delete(list)
+
+        playlists.addAt(list, a, position = 0, now = 1)
+
+        assertEquals(1, tracks.observeAll().first().size)
+        assertTrue(playlists.playlistIdsOf(a).isEmpty())
+    }
+
+    @Test
+    fun `existingVideoIds spans more than one query chunk`() = runTest {
+        listOf("a", "b").forEach { tracks.save(track(it), null) }
+        val ids = (1..1_200).map { "x$it" } + listOf("a", "b")
+
+        assertEquals(setOf("a", "b"), tracks.existingVideoIds(ids))
+        assertTrue(tracks.existingVideoIds(emptyList()).isEmpty())
+    }
+
+    @Test
+    fun `a playlist's tasks are queued together, can get a target and are cleared together`() = runTest {
+        val list = playlist("Album")
+        val ids = tasks.insertAll(listOf(task("a", 1), task("b", 2), task("c", 3)))
+        assertEquals(3, ids.size)
+
+        tasks.setTarget(ids[1], list, position = 5)
+
+        val withTarget = tasks.get(ids[1])
+        assertEquals(list, withTarget?.targetPlaylistId)
+        assertEquals(5, withTarget?.targetPosition)
+        assertNull(tasks.get(ids[0])?.targetPlaylistId)
+
+        tasks.deleteAll()
+        assertTrue(tasks.getAll().isEmpty())
+    }
+
     private fun task(videoId: String, createdAt: Long) = DownloadTaskEntity(
         videoId = videoId,
         title = videoId,

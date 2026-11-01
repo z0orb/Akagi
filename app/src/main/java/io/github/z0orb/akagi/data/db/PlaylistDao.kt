@@ -36,6 +36,10 @@ interface PlaylistDao {
     @Insert
     suspend fun insert(playlist: PlaylistEntity): Long
 
+    /** The playlist made from a YouTube list, if any; the oldest one when the user made several. */
+    @Query("SELECT * FROM playlists WHERE sourceListId = :listId ORDER BY id LIMIT 1")
+    suspend fun findBySourceListId(listId: String): PlaylistEntity?
+
     @Query("UPDATE playlists SET name = :name, updatedAt = :now WHERE id = :id")
     suspend fun rename(id: Long, name: String, now: Long)
 
@@ -51,6 +55,14 @@ interface PlaylistDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertMember(member: PlaylistTrackEntity)
 
+    // The EXISTS guard: INSERT OR IGNORE does not swallow a foreign-key failure, and a playlist deleted while its
+    // tracks were downloading must not fail the download (D-075).
+    @Query(
+        "INSERT OR IGNORE INTO playlist_tracks (playlistId, trackId, position) " +
+            "SELECT :playlistId, :trackId, :position WHERE EXISTS (SELECT 1 FROM playlists WHERE id = :playlistId)",
+    )
+    suspend fun insertMemberAt(playlistId: Long, trackId: Long, position: Int)
+
     @Query("DELETE FROM playlist_tracks WHERE playlistId = :playlistId AND trackId = :trackId")
     suspend fun deleteMember(playlistId: Long, trackId: Long)
 
@@ -61,6 +73,16 @@ interface PlaylistDao {
     @Transaction
     suspend fun append(playlistId: Long, trackId: Long, now: Long) {
         insertMember(PlaylistTrackEntity(playlistId, trackId, nextPosition(playlistId)))
+        touch(playlistId, now)
+    }
+
+    /**
+     * Puts the track at [position] (YouTube's order). Positions may have gaps while a list is still downloading;
+     * they only order. Does nothing if the playlist is gone or the track is already a member.
+     */
+    @Transaction
+    suspend fun addAt(playlistId: Long, trackId: Long, position: Int, now: Long) {
+        insertMemberAt(playlistId, trackId, position)
         touch(playlistId, now)
     }
 

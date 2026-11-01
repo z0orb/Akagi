@@ -53,6 +53,8 @@ data class PlaylistEntity(
     val name: String,
     val createdAt: Long,
     val updatedAt: Long,
+    /** The YouTube list this playlist was made from, so a later download of that list reuses it (D-075). */
+    val sourceListId: String? = null,
 )
 
 /** A track is in a playlist at most once; deleting either side removes the membership (D-008). */
@@ -100,4 +102,10 @@ data class DownloadTaskEntity(
     val replaceTrackId: Long? = null,
     val createdAt: Long,
     val updatedAt: Long,
+    /**
+     * Where a finished playlist download goes (D-075). No foreign key on purpose: a playlist deleted while its
+     * tracks download must never fail a download, the membership is just skipped.
+     */
+    val targetPlaylistId: Long? = null,
+    val targetPosition: Int? = null,
 )

@@ -78,6 +78,17 @@ android {
         buildConfig = true
     }
 
+    testOptions {
+        // Robolectric hands the migration test the exported Room schemas as assets (D-071).
+        unitTests.isIncludeAndroidResources = true
+    }
+
+    sourceSets {
+        // AGP points a unit test at the debug build's merged assets, not at the test source set's. The schemas
+        // are 22 KB and never reach a release build.
+        getByName("debug").assets.directories.add("schemas")
+    }
+
     packaging {
         // youtubedl-android runs Python/ffmpeg/QuickJS as executables, which must be extracted to disk.
         jniLibs.useLegacyPackaging = true
@@ -126,4 +137,5 @@ dependencies {
     testImplementation(libs.org.json)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.room.testing)
 }
